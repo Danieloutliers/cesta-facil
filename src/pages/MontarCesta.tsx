@@ -43,30 +43,34 @@ const MontarCesta = () => {
         </div>
 
         {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Buscar produtos..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12"
-            />
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
+        {/* Search and Filters */}
+        <div className="flex flex-col gap-6 mb-8">
+          {/* Categories */}
+          <div className="flex flex-wrap gap-2 justify-center md:justify-start">
             {categories.map((category) => (
               <Button
                 key={category.id}
                 variant={selectedCategory === category.id ? 'default' : 'secondary'}
                 size="sm"
                 onClick={() => setSelectedCategory(category.id)}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap rounded-full px-6"
               >
-                <span>{category.icon}</span>
+                <span className="mr-2">{category.icon}</span>
                 {category.label}
               </Button>
             ))}
+          </div>
+
+          {/* Search */}
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar produtos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-12 rounded-xl bg-background border-border/60 focus-visible:ring-primary/20"
+            />
           </div>
         </div>
 
