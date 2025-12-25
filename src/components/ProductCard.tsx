@@ -50,9 +50,9 @@ export function ProductCard({ product }: ProductCardProps) {
         </h3>
 
         <div className="flex items-end justify-between gap-2">
-          <div className="flex flex-col">
+          <div className="flex flex-col shrink-0">
             <span className="text-xs text-muted-foreground">Preço unitário</span>
-            <p className="text-xl font-bold text-primary">
+            <p className="text-xl font-bold text-primary whitespace-nowrap">
               R$ {product.price.toFixed(2).replace('.', ',')}
             </p>
           </div>
@@ -61,9 +61,9 @@ export function ProductCard({ product }: ProductCardProps) {
             <Button
               size="sm"
               onClick={() => addItem(product)}
-              className="rounded-full h-10 w-10 p-0 shadow-md hover:scale-105 transition-transform duration-200 bg-secondary hover:bg-primary hover:text-primary-foreground text-primary"
+              className="rounded-full h-10 w-10 p-0 shadow-md hover:scale-105 transition-transform duration-200 bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-6 w-6" />
               <span className="sr-only">Adicionar</span>
             </Button>
           ) : (
