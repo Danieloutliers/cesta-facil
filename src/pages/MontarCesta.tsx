@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
@@ -7,21 +7,34 @@ import { Footer } from '@/components/Footer';
 import { ProductCard } from '@/components/ProductCard';
 import { CartPanel } from '@/components/CartPanel';
 import { useCart } from '@/contexts/CartContext';
-import { products, categories } from '@/data/products';
 import { cn } from '@/lib/utils';
+import { useProducts, useCategories, seedDatabase } from '@/hooks/useData';
 
 const MontarCesta = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const { budget } = useCart();
 
+  const { products, loading: loadingProducts, refetch } = useProducts();
+  const { categories, loading: loadingCategories } = useCategories();
+
+  const handleSeed = async () => {
+    if (confirm('Deseja popular o banco de dados com os produtos padrão?')) {
+      await seedDatabase();
+      refetch();
+    }
+  };
+
   const filteredProducts = useMemo(() => {
+    if (!products) return [];
     return products.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'todos' || product.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [products, searchQuery, selectedCategory]);
+
+  const isLoading = loadingProducts || loadingCategories;
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,7 +55,6 @@ const MontarCesta = () => {
           </p>
         </div>
 
-        {/* Search and Filters */}
         {/* Search and Filters */}
         <div className="flex flex-col gap-6 mb-8">
           {/* Categories */}
@@ -75,15 +87,26 @@ const MontarCesta = () => {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-
-        {filteredProducts.length === 0 && (
+        {isLoading ? (
           <div className="text-center py-16">
+            <p className="text-muted-foreground animate-pulse">Carregando produtos...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && filteredProducts.length === 0 && (
+          <div className="text-center py-16 flex flex-col items-center gap-4">
             <p className="text-muted-foreground">Nenhum produto encontrado.</p>
+            {products.length === 0 && (
+              <Button onClick={handleSeed} variant="outline" className="mt-4">
+                Popular Banco de Dados (Seed)
+              </Button>
+            )}
           </div>
         )}
       </main>

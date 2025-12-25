@@ -41,3 +41,10 @@ export interface BudgetOption {
   description: string;
   popular?: boolean;
 }
+
+export interface Category {
+  id: string;
+  label: string;
+  icon: string;
+  order?: number;
+}
