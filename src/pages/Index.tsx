@@ -60,13 +60,7 @@ const Index = () => {
                 Começar a Montar
                 <ArrowRight className="h-5 w-5" />
               </Button>
-              <Button
-                size="lg"
-                variant="hero-outline"
-                className="w-full sm:w-auto hover:scale-105 transition-all duration-300"
-              >
-                Saiba Mais
-              </Button>
+
             </div>
 
             {/* Enhanced Feature Badges */}
