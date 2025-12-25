@@ -15,6 +15,13 @@ const Index = () => {
     navigate('/montar-cesta');
   };
 
+  const scrollToBudget = () => {
+    const budgetSection = document.getElementById('budget-section');
+    if (budgetSection) {
+      budgetSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -54,7 +61,7 @@ const Index = () => {
               <Button
                 size="lg"
                 variant="secondary"
-                onClick={handleStartShopping}
+                onClick={scrollToBudget}
                 className="text-primary w-full sm:w-auto shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
               >
                 Começar a Montar
@@ -95,7 +102,7 @@ const Index = () => {
       </section>
 
       {/* Budget Selection */}
-      <section className="py-12 md:py-24">
+      <section id="budget-section" className="py-12 md:py-24">
         <div className="container px-4">
           <div className="text-center mb-8 md:mb-12">
             <span className="inline-flex items-center gap-1.5 md:gap-2 bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-xs md:text-sm font-medium mb-3 md:mb-4">
