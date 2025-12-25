@@ -49,46 +49,48 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.name}
         </h3>
 
-        <div className="flex items-end justify-between gap-2">
-          <div className="flex flex-col shrink-0">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Preço unitário</span>
             <p className="text-xl font-bold text-primary whitespace-nowrap">
               R$ {product.price.toFixed(2).replace('.', ',')}
             </p>
           </div>
 
-          {quantity === 0 ? (
-            <Button
-              size="sm"
-              onClick={() => addItem(product)}
-              className="rounded-full h-10 w-10 p-0 shadow-md hover:scale-105 transition-transform duration-200 bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-6 w-6" />
-              <span className="sr-only">Adicionar</span>
-            </Button>
-          ) : (
-            <div className="flex items-center bg-secondary rounded-full p-1 shadow-inner">
+          <div className="w-full flex justify-end">
+            {quantity === 0 ? (
               <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => removeItem(product.id)}
-                className="rounded-full h-8 w-8 hover:bg-background hover:text-destructive hover:shadow-sm transition-all"
-              >
-                <Minus className="h-3.5 w-3.5" />
-              </Button>
-              <span className="w-8 text-center font-bold text-sm tabular-nums">
-                {quantity}
-              </span>
-              <Button
-                size="icon-sm"
-                variant="ghost"
+                size="sm"
                 onClick={() => addItem(product)}
-                className="rounded-full h-8 w-8 hover:bg-primary hover:text-primary-foreground hover:shadow-sm transition-all"
+                className="w-full rounded-xl h-9 shadow-md hover:scale-105 transition-transform duration-200 bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-5 w-5" />
+                <span className="font-semibold">Adicionar</span>
               </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center justify-between w-full bg-secondary rounded-xl p-1 shadow-inner">
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() => removeItem(product.id)}
+                  className="rounded-lg h-8 w-8 hover:bg-background hover:text-destructive hover:shadow-sm transition-all"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="flex-1 text-center font-bold text-sm tabular-nums">
+                  {quantity}
+                </span>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() => addItem(product)}
+                  className="rounded-lg h-8 w-8 hover:bg-primary hover:text-primary-foreground hover:shadow-sm transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
