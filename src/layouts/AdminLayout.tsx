@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Tag, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Tag, Settings, LogOut, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 // import { supabase } from '@/lib/supabase'; // We'll use this for auth check later
@@ -14,6 +14,7 @@ const AdminLayout = () => {
 
     const navItems = [
         { label: 'Dashboard', icon: <LayoutDashboard size={20} />, href: '/admin' },
+        { label: 'Pedidos', icon: <ClipboardList size={20} />, href: '/admin/orders' },
         { label: 'Produtos', icon: <Package size={20} />, href: '/admin/products' },
         { label: 'Categorias', icon: <Tag size={20} />, href: '/admin/categories' },
         { label: 'Configurações', icon: <Settings size={20} />, href: '/admin/settings' },

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CartItem, Product, Order, Address } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from './AuthContext';
 
 interface CartContextType {
   items: CartItem[];
@@ -15,8 +17,9 @@ interface CartContextType {
   isOverBudget: boolean;
   savings: number;
   orders: Order[];
-  addOrder: (address: Address, missingItemPreference: 'substituir' | 'credito') => Order;
+  addOrder: (address: Address, missingItemPreference: 'substituir' | 'credito') => Promise<Order>;
   repeatOrder: (order: Order) => void;
+  loading: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -25,17 +28,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [budget, setBudget] = useState<number>(300);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
+  // Load cart from localStorage
   useEffect(() => {
     const savedCart = localStorage.getItem('mercadofacil_cart');
     const savedBudget = localStorage.getItem('mercadofacil_budget');
-    const savedOrders = localStorage.getItem('mercadofacil_orders');
-    
+
     if (savedCart) setItems(JSON.parse(savedCart));
     if (savedBudget) setBudget(JSON.parse(savedBudget));
-    if (savedOrders) setOrders(JSON.parse(savedOrders));
   }, []);
 
+  // Load orders from Supabase when user changes
+  useEffect(() => {
+    if (user) {
+      loadOrders();
+    } else {
+      setOrders([]);
+    }
+  }, [user]);
+
+  // Save cart to localStorage
   useEffect(() => {
     localStorage.setItem('mercadofacil_cart', JSON.stringify(items));
   }, [items]);
@@ -44,9 +58,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('mercadofacil_budget', JSON.stringify(budget));
   }, [budget]);
 
-  useEffect(() => {
-    localStorage.setItem('mercadofacil_orders', JSON.stringify(orders));
-  }, [orders]);
+  const loadOrders = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform Supabase data to Order format
+      const transformedOrders: Order[] = data.map((row) => ({
+        id: row.order_number,
+        items: row.items as CartItem[],
+        budget: Number(row.budget),
+        total: Number(row.total),
+        savings: Number(row.savings),
+        status: row.status as Order['status'],
+        address: row.address as Address,
+        missingItemPreference: row.missing_item_preference as 'substituir' | 'credito',
+        createdAt: row.created_at,
+        estimatedDelivery: row.estimated_delivery,
+      }));
+
+      setOrders(transformedOrders);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const remaining = budget - total;
@@ -90,9 +135,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => setItems([]);
 
-  const addOrder = (address: Address, missingItemPreference: 'substituir' | 'credito'): Order => {
+  const addOrder = async (address: Address, missingItemPreference: 'substituir' | 'credito'): Promise<Order> => {
+    if (!user) {
+      throw new Error('User must be logged in to create an order');
+    }
+
+    const orderNumber = `ORD-${Date.now()}`;
     const order: Order = {
-      id: `ORD-${Date.now()}`,
+      id: orderNumber,
       items: [...items],
       budget,
       total,
@@ -103,9 +153,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
       estimatedDelivery: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     };
-    setOrders((prev) => [order, ...prev]);
-    clearCart();
-    return order;
+
+    try {
+      // Save to Supabase
+      const { error } = await supabase
+        .from('orders')
+        .insert([{
+          user_id: user.id,
+          order_number: orderNumber,
+          items: order.items,
+          budget: order.budget,
+          total: order.total,
+          savings: order.savings,
+          status: order.status,
+          address: order.address,
+          missing_item_preference: order.missingItemPreference,
+          created_at: order.createdAt,
+          estimated_delivery: order.estimatedDelivery,
+        }]);
+
+      if (error) throw error;
+
+      // Update local state
+      setOrders((prev) => [order, ...prev]);
+      clearCart();
+
+      return order;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
   };
 
   const repeatOrder = (order: Order) => {
@@ -131,6 +208,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         orders,
         addOrder,
         repeatOrder,
+        loading,
       }}
     >
       {children}

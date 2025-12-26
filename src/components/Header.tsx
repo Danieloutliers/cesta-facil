@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, X, History, Shield, Home } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Menu, X, History, Shield, Home, LogOut, LogIn, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { itemCount } = useCart();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
     { href: '/', label: 'Início', icon: Home },
@@ -16,6 +19,11 @@ export function Header() {
     { href: '/historico', label: 'Meus Pedidos', icon: History },
     { href: '/admin', label: 'Admin', icon: Shield },
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full bg-primary shadow-lg">
@@ -52,8 +60,26 @@ export function Header() {
           })}
         </nav>
 
-        {/* Cart Button */}
+        {/* Right Side Actions */}
         <div className="flex items-center gap-2">
+          {/* User Info / Login Button */}
+          {user ? (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-foreground/10">
+              <User className="h-4 w-4 text-primary-foreground" />
+              <span className="text-sm text-primary-foreground font-medium">
+                {user.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+              </span>
+            </div>
+          ) : (
+            <Link to="/login">
+              <Button variant="hero-outline" size="sm" className="hidden sm:flex">
+                <LogIn className="h-4 w-4" />
+                <span>Entrar</span>
+              </Button>
+            </Link>
+          )}
+
+          {/* Cart Button */}
           <Link to="/montar-cesta">
             <Button variant="hero-outline" size="sm" className="relative">
               <ShoppingCart className="h-4 w-4" />
@@ -65,6 +91,19 @@ export function Header() {
               )}
             </Button>
           </Link>
+
+          {/* Logout Button (Desktop) */}
+          {user && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden md:flex text-primary-foreground hover:bg-primary-foreground/10"
+              onClick={handleLogout}
+              title="Sair"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          )}
 
           {/* Mobile Menu Button */}
           <Button
@@ -82,6 +121,37 @@ export function Header() {
       {isMenuOpen && (
         <nav className="md:hidden border-t border-primary-foreground/20 bg-primary">
           <div className="container py-4 flex flex-col gap-2">
+            {/* User Info (Mobile) */}
+            {user ? (
+              <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-primary-foreground/10 mb-2">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary-foreground" />
+                  <span className="text-sm text-primary-foreground font-medium">
+                    {user.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-primary-foreground hover:bg-primary-foreground/10"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </Button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-primary-foreground/10 text-primary-foreground mb-2"
+              >
+                <LogIn className="h-5 w-5" />
+                Entrar
+              </Link>
+            )}
+
+            {/* Nav Links */}
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.href;

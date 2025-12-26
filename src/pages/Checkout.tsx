@@ -9,6 +9,7 @@ import { Footer } from '@/components/Footer';
 import { PreferencesCard } from '@/components/PreferencesCard';
 import { PaymentMethodCard } from '@/components/PaymentMethodCard';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 import { Address } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,8 @@ const Checkout = () => {
   const { items, total, budget, savings, addOrder, itemCount } = useCart();
   const [step, setStep] = useState<'address' | 'preferences' | 'success'>('address');
   const [missingPreference, setMissingPreference] = useState<'substituir' | 'credito'>('substituir');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const [address, setAddress] = useState<Address>({
     cep: '',
     street: '',
@@ -33,12 +36,23 @@ const Checkout = () => {
 
   const isAddressValid = address.cep && address.street && address.number && address.neighborhood && address.city && address.state;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (step === 'address' && isAddressValid) {
       setStep('preferences');
     } else if (step === 'preferences') {
-      addOrder(address, missingPreference);
-      setStep('success');
+      try {
+        setLoading(true);
+        await addOrder(address, missingPreference);
+        setStep('success');
+      } catch (error) {
+        toast({
+          title: 'Erro ao criar pedido',
+          description: 'Tente novamente mais tarde.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -210,9 +224,9 @@ const Checkout = () => {
                   size="lg"
                   className="w-full"
                   onClick={handleSubmit}
-                  disabled={step === 'address' && !isAddressValid}
+                  disabled={(step === 'address' && !isAddressValid) || loading}
                 >
-                  {step === 'address' ? 'Continuar' : 'Confirmar Pedido'}
+                  {loading ? 'Processando...' : (step === 'address' ? 'Continuar' : 'Confirmar Pedido')}
                 </Button>
               </div>
 
