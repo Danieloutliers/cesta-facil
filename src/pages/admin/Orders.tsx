@@ -304,6 +304,21 @@ export default function Orders() {
         }
     };
 
+    // Helper to send via Bot
+    const sendViaBot = async (phone: string, message: string) => {
+        try {
+            const response = await fetch('http://localhost:3001/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, message })
+            });
+            const data = await response.json();
+            return data.success;
+        } catch (err) {
+            return false; // Bot offline or error
+        }
+    };
+
     const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
         try {
             // Find the order *before* update for the message
@@ -323,24 +338,43 @@ export default function Orders() {
 
             if (error) throw error;
 
-            // Show notification toast
+            // Handle Notification
             if (order) {
                 const message = getWhatsappMessage(newStatus, order.user.name || 'Cliente', orderId);
                 const phoneNumber = `55${order.user.phone}`;
                 const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
+                // Attempt Bot Send First
                 toast({
-                    title: "Status atualizado!",
-                    description: `Novo status: ${statusConfig[newStatus as keyof typeof statusConfig].label}`,
-                    action: (
-                        <ToastAction altText="Enviar WhatsApp" onClick={() => window.open(whatsappUrl, '_blank')}>
-                            <div className="flex items-center gap-2">
-                                <MessageCircle className="h-4 w-4" />
-                                Enviar Zap
-                            </div>
-                        </ToastAction>
-                    ),
+                    title: "Atualizando status...",
+                    description: "Tentando contato com o robô...",
+                    duration: 2000,
                 });
+
+                const sentByBot = await sendViaBot(phoneNumber, message);
+
+                if (sentByBot) {
+                    toast({
+                        title: "✅ Sucesso Automático!",
+                        description: `Mensagem enviada pelo Droide para ${order.user.name}`,
+                        variant: "default",
+                        className: "bg-green-50 border-green-200 text-green-900"
+                    });
+                } else {
+                    // Fallback to Manual
+                    toast({
+                        title: "⚠️ Modo Manual",
+                        description: `Robô offline. Envie manualmente:`,
+                        action: (
+                            <ToastAction altText="Enviar WhatsApp" onClick={() => window.open(whatsappUrl, '_blank')}>
+                                <div className="flex items-center gap-2">
+                                    <MessageCircle className="h-4 w-4" />
+                                    Enviar Zap
+                                </div>
+                            </ToastAction>
+                        ),
+                    });
+                }
             }
 
         } catch (error) {

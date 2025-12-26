@@ -18,25 +18,31 @@ const client = new Client({
     }
 });
 
+// ... imports
+
 let isReady = false;
+let qrCodeData = null;
 
 client.on('qr', (qr) => {
     console.log('🔗 QR CODE RECEBIDO!');
-    console.log('Escaneie com seu WhatsApp para conectar:');
+    qrCodeData = qr; // Store QR for frontend
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
     console.log('✅ Tudo pronto! O Robô do Zap está conectado e rodando.');
     isReady = true;
+    qrCodeData = null; // Clear QR when connected
 });
 
-client.on('authenticated', () => {
-    console.log('🔑 Autenticado com sucesso!');
-});
+// ... auth events
 
-client.on('auth_failure', msg => {
-    console.error('❌ Falha na autenticação:', msg);
+// API Endpoint to check status and get QR
+app.get('/status', (req, res) => {
+    res.json({
+        ready: isReady,
+        qr: qrCodeData
+    });
 });
 
 // API Endpoint to send messages
@@ -52,19 +58,57 @@ app.post('/send', async (req, res) => {
     }
 
     try {
-        // Format phone number: remove non-digits, ensure 55 prefix, add @c.us suffix
+        // Format phone number: remove non-digits, ensure 55 prefix
         let formattedPhone = phone.replace(/\D/g, '');
         if (!formattedPhone.startsWith('55')) {
             formattedPhone = '55' + formattedPhone;
         }
-        const chatId = formattedPhone + '@c.us';
 
-        await client.sendMessage(chatId, message);
-        console.log(`📨 Mensagem enviada para ${formattedPhone}`);
-        res.json({ success: true });
+        // Append suffix for query
+        const checkId = formattedPhone + '@c.us';
+
+        try {
+            // Verify if number is registered on WhatsApp
+            const numberDetails = await client.getNumberId(checkId);
+
+            if (!numberDetails) {
+                console.log(`❌ Número não registrado no WhatsApp: ${formattedPhone}`);
+                return res.status(404).json({ success: false, error: 'Number not registered' });
+            }
+
+            const chatId = numberDetails._serialized; // Use the correct internal ID (handles 9th digit)
+            await client.sendMessage(chatId, message);
+
+            console.log(`📨 Mensagem enviada para ${formattedPhone} (${chatId})`);
+            res.json({ success: true });
+
+        } catch (waError) {
+            console.error('Erro interno do WA ao verificar/enviar:', waError);
+            // Fallback: try sending to the manually constructed ID if built-in check fails
+            const fallbackId = formattedPhone + '@c.us';
+            await client.sendMessage(fallbackId, message);
+            console.log(`⚠️ Mensagem enviada (fallback) para ${fallbackId}`);
+            res.json({ success: true, warning: 'Sent via fallback' });
+        }
 
     } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
+        console.error('Erro geral ao enviar mensagem:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// API Endpoint to logout
+app.post('/logout', async (req, res) => {
+    try {
+        await client.logout();
+        console.log('🚪 Cliente desconectado via API');
+        isReady = false;
+        qrCodeData = null;
+        // Re-initialize to allow new connection
+        client.initialize();
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Erro ao desconectar:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

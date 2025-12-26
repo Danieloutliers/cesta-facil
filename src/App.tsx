@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import AdminLayout from "./layouts/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
 import Orders from "./pages/admin/Orders";
+import WhatsappConnect from './pages/admin/Whatsapp';
 import Products from "./pages/admin/Products";
 import Categories from "./pages/admin/Categories";
 import Settings from "./pages/admin/Settings";
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="orders" element={<Orders />} />
                 <Route path="products" element={<Products />} />
                 <Route path="categories" element={<Categories />} />
+                <Route path="whatsapp" element={<WhatsappConnect />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
