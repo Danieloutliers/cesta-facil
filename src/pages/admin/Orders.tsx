@@ -70,19 +70,53 @@ const statusConfig = {
     },
 };
 
-const getWhatsappMessage = (status: Order['status'], customerName: string, orderId: string) => {
-    const firstName = customerName.split(' ')[0];
-    const shortId = orderId.slice(-6);
+const getWhatsappMessage = async (status: Order['status'], order: OrderWithUser) => {
+    const firstName = (order.user.name || 'Cliente').split(' ')[0];
+    const shortId = order.id.slice(-6);
 
+    try {
+        // Try to load templates from backend
+        const res = await fetch('http://localhost:3001/templates');
+        const templates = await res.json();
+
+        // Map status to template key
+        const templateKey = status === 'processando' ? 'processing' :
+            status === 'separando' ? 'separating' :
+                status === 'em_rota' ? 'out_for_delivery' :
+                    status === 'entregue' ? 'delivered' : null;
+
+        if (templateKey && templates[templateKey]) {
+            let message = templates[templateKey];
+
+            // Build items list for message
+            const itemsList = order.items.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
+            const fullAddress = `${order.address.street}, ${order.address.number}${order.address.complement ? ` - ${order.address.complement}` : ''}, ${order.address.neighborhood}, ${order.address.city}`;
+
+            // Replace variables
+            message = message
+                .replace(/{nome}/g, firstName)
+                .replace(/{pedido}/g, shortId)
+                .replace(/{itens}/g, itemsList)
+                .replace(/{total}/g, order.total.toFixed(2).replace('.', ','))
+                .replace(/{endereco}/g, fullAddress);
+
+            return message;
+        }
+    } catch (err) {
+        console.log('Failed to load templates, using fallback:', err);
+    }
+
+    // Fallback messages if templates not available
     switch (status) {
         case 'processando':
-            return `Olá ${firstName}! Seu pedido *#${shortId}* no Mercado Fácil foi confirmado e já está sendo processado. 📋`;
+            const itemsList = order.items.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
+            return `Olá ${firstName}! 🛒\n\nSeu pedido *#${shortId}* foi recebido e está sendo processado.\n\n*Itens:*\n${itemsList}\n\n*Total:* R$ ${order.total.toFixed(2).replace('.', ',')}\n*Endereço:* ${order.address.street}, ${order.address.number}, ${order.address.neighborhood}\n\nEm breve atualizaremos você!`;
         case 'separando':
-            return `Olá ${firstName}! Boas notícias: Já estamos separando os itens do seu pedido *#${shortId}*. Em breve sairá para entrega! 🛒`;
+            return `Olá ${firstName}! Já estamos separando os itens do seu pedido *#${shortId}*. Em breve sairá para entrega! 📦`;
         case 'em_rota':
-            return `Olá ${firstName}! Seu pedido *#${shortId}* acabou de sair para entrega. Fique atento(a) à campainha! 🛵💨`;
+            return `Olá ${firstName}! Seu pedido *#${shortId}* acabou de sair para entrega. Fique atento(a) à campainha! 🚚`;
         case 'entregue':
-            return `Pedido *#${shortId}* entregue! Muito obrigado por comprar no Mercado Fácil. Esperamos que tenha gostado da experiência! ⭐`;
+            return `Pedido *#${shortId}* entregue! Muito obrigado por comprar conosco. ⭐`;
         default:
             return `Olá ${firstName}! Status do seu pedido *#${shortId}* atualizado para: ${status}`;
     }
@@ -340,7 +374,7 @@ export default function Orders() {
 
             // Handle Notification
             if (order) {
-                const message = getWhatsappMessage(newStatus, order.user.name || 'Cliente', orderId);
+                const message = await getWhatsappMessage(newStatus, order);
                 const phoneNumber = `55${order.user.phone}`;
                 const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 

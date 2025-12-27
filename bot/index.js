@@ -2,6 +2,8 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = 3001;
@@ -79,6 +81,17 @@ app.post('/send', async (req, res) => {
             const chatId = numberDetails._serialized; // Use the correct internal ID (handles 9th digit)
             await client.sendMessage(chatId, message);
 
+            // Log message
+            const log = readLogFile();
+            log.push({
+                timestamp: new Date().toISOString(),
+                phone: formattedPhone,
+                message: message,
+                status: 'sent',
+                chatId: chatId
+            });
+            writeLogFile(log);
+
             console.log(`📨 Mensagem enviada para ${formattedPhone} (${chatId})`);
             res.json({ success: true });
 
@@ -87,12 +100,36 @@ app.post('/send', async (req, res) => {
             // Fallback: try sending to the manually constructed ID if built-in check fails
             const fallbackId = formattedPhone + '@c.us';
             await client.sendMessage(fallbackId, message);
+
+            // Log message (fallback)
+            const log = readLogFile();
+            log.push({
+                timestamp: new Date().toISOString(),
+                phone: formattedPhone,
+                message: message,
+                status: 'sent_fallback',
+                chatId: fallbackId
+            });
+            writeLogFile(log);
+
             console.log(`⚠️ Mensagem enviada (fallback) para ${fallbackId}`);
             res.json({ success: true, warning: 'Sent via fallback' });
         }
 
     } catch (error) {
         console.error('Erro geral ao enviar mensagem:', error);
+
+        // Log failed message
+        const log = readLogFile();
+        log.push({
+            timestamp: new Date().toISOString(),
+            phone: req.body.phone,
+            message: req.body.message,
+            status: 'failed',
+            error: error.message
+        });
+        writeLogFile(log);
+
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -100,15 +137,109 @@ app.post('/send', async (req, res) => {
 // API Endpoint to logout
 app.post('/logout', async (req, res) => {
     try {
-        await client.logout();
-        console.log('🚪 Cliente desconectado via API');
+        console.log('Solicitação de logout recebida...');
+
+        try {
+            // Try graceful logout first
+            await client.logout();
+            console.log('🚪 Logout realizado no WhatsApp');
+        } catch (err) {
+            console.log('⚠️ Erro no logout (prosseguindo para limpeza forçada):', err.message);
+        }
+
+        // Destroy client
+        await client.destroy();
+
+        // FORCE DELETE Session Data (to ensure it doesn't remember the old number)
+        const authPath = path.join(__dirname, '.wwebjs_auth');
+        if (fs.existsSync(authPath)) {
+            console.log('🧹 Limpando dados da sessão antiga...');
+            fs.rmSync(authPath, { recursive: true, force: true });
+        }
+
+        // Initialize new session
+        console.log('♻️ Reiniciando navegador para gerar novo QR...');
+        client.initialize();
+
         isReady = false;
         qrCodeData = null;
-        // Re-initialize to allow new connection
-        client.initialize();
+
         res.json({ success: true });
     } catch (error) {
-        console.error('Erro ao desconectar:', error);
+        console.error('Erro crítico ao resetar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Paths for data files
+const LOG_FILE = path.join(__dirname, 'message-log.json');
+const TEMPLATES_FILE = path.join(__dirname, 'message-templates.json');
+
+// Helper functions
+const readLogFile = () => {
+    try {
+        if (fs.existsSync(LOG_FILE)) {
+            return JSON.parse(fs.readFileSync(LOG_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.error('Erro ao ler log:', err);
+    }
+    return [];
+};
+
+const writeLogFile = (data) => {
+    try {
+        fs.writeFileSync(LOG_FILE, JSON.stringify(data, null, 2));
+    } catch (err) {
+        console.error('Erro ao salvar log:', err);
+    }
+};
+
+const readTemplatesFile = () => {
+    try {
+        if (fs.existsSync(TEMPLATES_FILE)) {
+            return JSON.parse(fs.readFileSync(TEMPLATES_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.error('Erro ao ler templates:', err);
+    }
+    // Default templates
+    return {
+        processing: "Olá {nome}! 🛒\n\nSeu pedido #{pedido} foi recebido e está sendo processado.\n\n*Itens:*\n{itens}\n\n*Total:* R$ {total}\n*Endereço:* {endereco}\n\nEm breve atualizaremos você!",
+        separating: "Oi {nome}! 📦\n\nSeu pedido #{pedido} está sendo separado.\nLogo estará a caminho!",
+        out_for_delivery: "Oba {nome}! 🚚\n\nSeu pedido #{pedido} saiu para entrega!\nEm breve chegará no endereço:\n{endereco}",
+        delivered: "Pedido entregue! ✅\n\nObrigado pela preferência, {nome}!\nPedido #{pedido} foi entregue com sucesso."
+    };
+};
+
+const writeTemplatesFile = (data) => {
+    try {
+        fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(data, null, 2));
+    } catch (err) {
+        console.error('Erro ao salvar templates:', err);
+    }
+};
+
+// API Endpoint to get message log
+app.get('/message-log', (req, res) => {
+    const log = readLogFile();
+    // Return last 50 messages
+    res.json(log.slice(-50).reverse());
+});
+
+// API Endpoint to get templates
+app.get('/templates', (req, res) => {
+    const templates = readTemplatesFile();
+    res.json(templates);
+});
+
+// API Endpoint to update templates
+app.put('/templates', (req, res) => {
+    try {
+        const templates = req.body;
+        writeTemplatesFile(templates);
+        res.json({ success: true });
+    } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
