@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Menu, X, History, Shield, Home, LogOut, LogIn, User } from 'lucide-react';
+import { ShoppingCart, History, Shield, Home, LogOut, LogIn, User, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { itemCount } = useCart();
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -79,8 +79,8 @@ export function Header() {
             </Link>
           )}
 
-          {/* Cart Button */}
-          <Link to="/montar-cesta">
+          {/* Cart Button - Hidden on mobile, visible on desktop */}
+          <Link to="/montar-cesta" className="hidden md:block">
             <Button variant="hero-outline" size="sm" className="relative">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden sm:inline">Carrinho</span>
@@ -105,76 +105,45 @@ export function Header() {
             </Button>
           )}
 
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden text-primary-foreground hover:bg-primary-foreground/10"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
+          {/* Mobile Menu Button Removed - Using Bottom Nav */}
+
+          {/* Mobile Actions (Notifications & Profile) */}
+          <div className="flex md:hidden items-center gap-1">
+            {/* Notification Bell */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">Notificações</span>
+            </Button>
+
+            {/* User Avatar */}
+            {user ? (
+              <Link to="/admin/settings">
+                <Avatar className="h-8 w-8 border-2 border-primary-foreground/20">
+                  <AvatarFallback className="bg-primary-foreground/10 text-primary-foreground text-xs">
+                    {user.name ? user.name.substring(0, 2).toUpperCase() : <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            ) : (
+              <Link to="/login">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary-foreground hover:bg-primary-foreground/10"
+                >
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Mobile Navigation */}
-      {isMenuOpen && (
-        <nav className="md:hidden border-t border-primary-foreground/20 bg-primary">
-          <div className="container py-4 flex flex-col gap-2">
-            {/* User Info (Mobile) */}
-            {user ? (
-              <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-primary-foreground/10 mb-2">
-                <div className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary-foreground" />
-                  <span className="text-sm text-primary-foreground font-medium">
-                    {user.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-primary-foreground hover:bg-primary-foreground/10"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sair
-                </Button>
-              </div>
-            ) : (
-              <Link
-                to="/login"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-primary-foreground/10 text-primary-foreground mb-2"
-              >
-                <LogIn className="h-5 w-5" />
-                Entrar
-              </Link>
-            )}
-
-            {/* Nav Links */}
-            {navLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = location.pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all",
-                    isActive
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10"
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  {link.label}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+      {/* Mobile Navigation Removed */}
     </header>
   );
 }

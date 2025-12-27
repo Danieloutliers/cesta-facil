@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { MobileNavBar } from '@/components/MobileNavBar';
 import { ProductCard } from '@/components/ProductCard';
 import { CartPanel } from '@/components/CartPanel';
 import { useCart } from '@/contexts/CartContext';
@@ -40,7 +41,7 @@ const MontarCesta = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container py-8 pb-32">
+      <main className="container py-8 pb-44 md:pb-32">
         {/* Title */}
         <div className="text-center mb-8">
           <span className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground rounded-full px-4 py-1 text-sm font-medium mb-4">
@@ -112,6 +113,7 @@ const MontarCesta = () => {
       </main>
 
       <CartPanel />
+      <MobileNavBar />
       <Footer />
     </div>
   );

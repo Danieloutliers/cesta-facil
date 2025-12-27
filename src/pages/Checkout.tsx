@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { MobileNavBar } from '@/components/MobileNavBar';
 import { PreferencesCard } from '@/components/PreferencesCard';
 import { PaymentMethodCard } from '@/components/PaymentMethodCard';
 import { useCart } from '@/contexts/CartContext';
@@ -65,7 +66,7 @@ const Checkout = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container py-8">
+      <main className="container py-8 pb-24 md:pb-8">
         {step !== 'success' && (
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -286,6 +287,7 @@ const Checkout = () => {
         </div>
       </main>
 
+      <MobileNavBar />
       <Footer />
     </div>
   );

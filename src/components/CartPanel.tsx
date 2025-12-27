@@ -16,7 +16,7 @@ export function CartPanel() {
   if (itemCount === 0) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-2xl animate-slide-up">
+    <div className="fixed bottom-0 md:bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-2xl animate-slide-up" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}>
       {/* Expandable Items List */}
       {isExpanded && (
         <div className="max-h-64 overflow-y-auto border-b border-border">
@@ -88,8 +88,8 @@ export function CartPanel() {
                 )}
               </span>
             </div>
-            <Progress 
-              value={progressPercentage} 
+            <Progress
+              value={progressPercentage}
               className={cn(
                 "h-2",
                 isOverBudget && "[&>div]:bg-destructive"

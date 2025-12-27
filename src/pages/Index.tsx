@@ -3,6 +3,7 @@ import { ShoppingCart, Truck, CreditCard, Shield, Sparkles, ArrowRight, Check, U
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { MobileNavBar } from '@/components/MobileNavBar';
 import { BudgetCard } from '@/components/BudgetCard';
 import { useCart } from '@/contexts/CartContext';
 import { budgetOptions } from '@/data/products';
@@ -245,6 +246,7 @@ const Index = () => {
         </div>
       </section>
 
+      <MobileNavBar />
       <Footer />
     </div>
   );

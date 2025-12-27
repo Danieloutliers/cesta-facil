@@ -3,6 +3,7 @@ import { Package, Clock, Truck, Check, RefreshCw, ArrowRight, ShoppingCart } fro
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { MobileNavBar } from '@/components/MobileNavBar';
 import { useCart } from '@/contexts/CartContext';
 import { Order } from '@/types';
 import { cn } from '@/lib/utils';
@@ -37,7 +38,7 @@ const Historico = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container py-8">
+      <main className="container py-8 pb-24 md:pb-8">
         <div className="text-center mb-8">
           <span className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground rounded-full px-4 py-1 text-sm font-medium mb-4">
             📦 Meus Pedidos
@@ -151,6 +152,7 @@ const Historico = () => {
         )}
       </main>
 
+      <MobileNavBar />
       <Footer />
     </div>
   );
