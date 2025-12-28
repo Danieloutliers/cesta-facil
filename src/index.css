@@ -1,79 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 20% 15%;
+    --background: 210 40% 98%;
+    /* Off-white suave (AliceBlue/Slate tint) */
+    --foreground: 222 47% 11%;
+    /* Dark Slate Blue para texto principal */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 15%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 15%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 145 80% 42%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 145 80% 36%;
+    /* Verde Primário Refinado (Emerald/Teal mais sofisticado) */
+    --primary: 158 64% 52%;
+    /* Emerald 500 mais vibrante mas profissional */
+    --primary-foreground: 222 47% 11%;
+    --primary-hover: 158 64% 45%;
 
-    --secondary: 145 60% 95%;
-    --secondary-foreground: 145 80% 30%;
+    --secondary: 210 40% 96.1%;
+    /* Cinza muito suave para fundos secundários */
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 145 60% 95%;
-    --accent-foreground: 145 80% 30%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 210 40% 98%;
 
-    --success: 145 80% 42%;
-    --success-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 158 64% 52%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 145 80% 42%;
-
-    --radius: 0.75rem;
+    --radius: 1rem;
+    /* Bordas arredondadas modernas (16px) */
 
     --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 
   .dark {
-    --background: 220 20% 10%;
-    --foreground: 0 0% 98%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 220 20% 13%;
-    --card-foreground: 0 0% 98%;
+    --card: 222 47% 13%;
+    /* Levemente mais claro que o fundo */
+    --card-foreground: 210 40% 98%;
 
-    --popover: 220 20% 13%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 145 80% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 158 64% 52%;
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 145 30% 20%;
-    --secondary-foreground: 145 60% 90%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 220 15% 20%;
-    --muted-foreground: 220 10% 65%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 145 30% 20%;
-    --accent-foreground: 145 60% 90%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 145 80% 45%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 158 64% 52%;
   }
 }
 
@@ -87,45 +88,54 @@
     font-family: var(--font-sans);
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-bold tracking-tight;
   }
 }
 
 @layer utilities {
+
+  /* Utilitários Minimalistas "Less is More" */
   .gradient-primary {
-    @apply bg-gradient-to-r from-primary to-emerald-500;
+    @apply bg-primary text-primary-foreground;
   }
 
   .gradient-hero {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(145 70% 35%) 100%);
+    @apply bg-primary;
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-600;
+    @apply text-foreground;
   }
 
-  .shadow-primary {
-    box-shadow: 0 4px 20px -4px hsl(var(--primary) / 0.4);
+  /* Sombras Difusas e Sutis */
+  .shadow-soft {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.04);
   }
 
   .shadow-card {
-    box-shadow: 0 2px 12px -2px hsl(220 20% 15% / 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   }
 
   .shadow-card-hover {
-    box-shadow: 0 8px 30px -4px hsl(220 20% 15% / 0.12);
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.06);
   }
 
   .animate-slide-up {
-    animation: slideUp 0.3s ease-out;
+    animation: slideUp 0.5s cubic-bezier(0.19, 1, 0.22, 1);
   }
 
   @keyframes slideUp {
     from {
-      transform: translateY(100%);
+      transform: translateY(16px);
       opacity: 0;
     }
+
     to {
       transform: translateY(0);
       opacity: 1;
@@ -133,13 +143,14 @@
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.5s ease-out;
+    animation: fadeIn 0.4s ease-out;
   }
 
   @keyframes fadeIn {
     from {
       opacity: 0;
     }
+
     to {
       opacity: 1;
     }
