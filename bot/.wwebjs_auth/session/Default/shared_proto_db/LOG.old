@@ -1,2 +1,3 @@
-2025/12/27-12:51:53.065 3890 Creating DB C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db since it was missing.
-2025/12/27-12:51:53.149 3890 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db/MANIFEST-000001
+2025/12/27-13:12:05.245 2504 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db/MANIFEST-000001
+2025/12/27-13:12:05.246 2504 Recovering log #3
+2025/12/27-13:12:05.248 2504 Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db/000003.log 

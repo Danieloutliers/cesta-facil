@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { BOT_API_URL } from '@/config/bot';
 
 interface MessageLog {
     timestamp: string;
@@ -46,7 +47,7 @@ export default function WhatsappConnect() {
         setLoading(true);
         setError(false);
         try {
-            const res = await fetch('http://localhost:3001/status');
+            const res = await fetch(`${BOT_API_URL}/status`);
             const data = await res.json();
             setStatus(data);
         } catch (err) {
@@ -60,7 +61,7 @@ export default function WhatsappConnect() {
 
     const loadMessageLog = async () => {
         try {
-            const res = await fetch('http://localhost:3001/message-log');
+            const res = await fetch(`${BOT_API_URL}/message-log`);
             const data = await res.json();
             setMessageLog(data);
         } catch (err) {
@@ -70,7 +71,7 @@ export default function WhatsappConnect() {
 
     const loadTemplates = async () => {
         try {
-            const res = await fetch('http://localhost:3001/templates');
+            const res = await fetch(`${BOT_API_URL}/templates`);
             if (res.ok) {
                 const data = await res.json();
                 setTemplates(data);
@@ -93,7 +94,7 @@ export default function WhatsappConnect() {
         if (!editingTemplates) return;
 
         try {
-            const res = await fetch('http://localhost:3001/templates', {
+            const res = await fetch(`${BOT_API_URL}/templates`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(editingTemplates)
@@ -115,7 +116,7 @@ export default function WhatsappConnect() {
 
         setLoading(true);
         try {
-            await fetch('http://localhost:3001/logout', { method: 'POST' });
+            await fetch(`${BOT_API_URL}/logout`, { method: 'POST' });
             setTimeout(checkStatus, 2000);
         } catch (err) {
             console.error('Erro ao desconectar:', err);
@@ -132,7 +133,7 @@ export default function WhatsappConnect() {
 
         setSending(true);
         try {
-            const res = await fetch('http://localhost:3001/send', {
+            const res = await fetch(`${BOT_API_URL}/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone: manualPhone, message: manualMessage })

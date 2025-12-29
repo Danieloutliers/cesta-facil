@@ -35,6 +35,7 @@ import {
 } from '@dnd-kit/core';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { BOT_API_URL } from '@/config/bot';
 
 interface OrderWithUser extends Order {
     user: {
@@ -76,7 +77,7 @@ const getWhatsappMessage = async (status: Order['status'], order: OrderWithUser)
 
     try {
         // Try to load templates from backend
-        const res = await fetch('http://localhost:3001/templates');
+        const res = await fetch(`${BOT_API_URL}/templates`);
         const templates = await res.json();
 
         // Map status to template key
@@ -341,7 +342,7 @@ export default function Orders() {
     // Helper to send via Bot
     const sendViaBot = async (phone: string, message: string) => {
         try {
-            const response = await fetch('http://localhost:3001/send', {
+            const response = await fetch(`${BOT_API_URL}/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone, message })
