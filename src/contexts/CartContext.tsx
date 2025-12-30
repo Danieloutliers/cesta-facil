@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { CartItem, Product, Order, Address } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
+import { sendWhatsAppMessage, getWhatsAppMessage } from '@/lib/whatsapp';
 
 interface CartContextType {
   items: CartItem[];
@@ -177,6 +178,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // Update local state
       setOrders((prev) => [order, ...prev]);
       clearCart();
+
+      // Send WhatsApp notification (async, non-blocking)
+      // This happens after order creation to ensure the order is saved even if WhatsApp fails
+      (async () => {
+        try {
+          // Get user data for message
+          const { data: userData } = await supabase
+            .from('users')
+            .select('name, phone')
+            .eq('id', user.id)
+            .single();
+
+          if (userData) {
+            const orderWithUser = {
+              ...order,
+              user: {
+                phone: userData.phone,
+                name: userData.name,
+              }
+            };
+
+            const message = await getWhatsAppMessage('processando', orderWithUser);
+            const phoneNumber = `55${userData.phone}`;
+            const sent = await sendWhatsAppMessage(phoneNumber, message);
+
+            if (sent) {
+              console.log(`✅ WhatsApp message sent successfully for order ${orderNumber}`);
+            } else {
+              console.log(`⚠️ Failed to send WhatsApp message for order ${orderNumber} (bot may be offline)`);
+            }
+          }
+        } catch (whatsappError) {
+          console.error('Error sending WhatsApp notification:', whatsappError);
+          // Don't throw - we don't want to fail order creation if WhatsApp fails
+        }
+      })();
 
       return order;
     } catch (error) {

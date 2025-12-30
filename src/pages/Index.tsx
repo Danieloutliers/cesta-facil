@@ -7,11 +7,12 @@ import { MobileNavBar } from '@/components/MobileNavBar';
 import { BudgetCard } from '@/components/BudgetCard';
 import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { useCart } from '@/contexts/CartContext';
-import { budgetOptions } from '@/data/products';
+import { useBudgetOptions } from '@/hooks/useBudgetOptions';
 
 const Index = () => {
     const navigate = useNavigate();
     const { budget, setBudget } = useCart();
+    const { options: budgetOptions, loading } = useBudgetOptions();
 
     const handleStartShopping = () => {
         navigate('/montar-cesta');
@@ -38,19 +39,25 @@ const Index = () => {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 max-w-5xl mx-auto">
-                        {budgetOptions.map((option) => (
-                            <BudgetCard
-                                key={option.value}
-                                value={option.value}
-                                label={option.label}
-                                description={option.description}
-                                popular={option.popular}
-                                selected={budget === option.value}
-                                onSelect={() => setBudget(option.value)}
-                            />
-                        ))}
-                    </div>
+                    {loading ? (
+                        <div className="flex justify-center py-12">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 max-w-5xl mx-auto">
+                            {budgetOptions.map((option) => (
+                                <BudgetCard
+                                    key={option.id || option.value}
+                                    value={option.value}
+                                    label={option.label}
+                                    description={option.description}
+                                    popular={option.popular}
+                                    selected={budget === option.value}
+                                    onSelect={() => setBudget(option.value)}
+                                />
+                            ))}
+                        </div>
+                    )}
 
                     <div className="text-center mt-10 md:mt-12">
                         <Button

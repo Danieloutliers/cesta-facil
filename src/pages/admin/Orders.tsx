@@ -35,7 +35,7 @@ import {
 } from '@dnd-kit/core';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { BOT_API_URL } from '@/config/bot';
+import { sendWhatsAppMessage, getWhatsAppMessage } from '@/lib/whatsapp';
 
 interface OrderWithUser extends Order {
     user: {
@@ -71,57 +71,6 @@ const statusConfig = {
     },
 };
 
-const getWhatsappMessage = async (status: Order['status'], order: OrderWithUser) => {
-    const firstName = (order.user.name || 'Cliente').split(' ')[0];
-    const shortId = order.id.slice(-6);
-
-    try {
-        // Try to load templates from backend
-        const res = await fetch(`${BOT_API_URL}/templates`);
-        const templates = await res.json();
-
-        // Map status to template key
-        const templateKey = status === 'processando' ? 'processing' :
-            status === 'separando' ? 'separating' :
-                status === 'em_rota' ? 'out_for_delivery' :
-                    status === 'entregue' ? 'delivered' : null;
-
-        if (templateKey && templates[templateKey]) {
-            let message = templates[templateKey];
-
-            // Build items list for message
-            const itemsList = order.items.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
-            const fullAddress = `${order.address.street}, ${order.address.number}${order.address.complement ? ` - ${order.address.complement}` : ''}, ${order.address.neighborhood}, ${order.address.city}`;
-
-            // Replace variables
-            message = message
-                .replace(/{nome}/g, firstName)
-                .replace(/{pedido}/g, shortId)
-                .replace(/{itens}/g, itemsList)
-                .replace(/{total}/g, order.total.toFixed(2).replace('.', ','))
-                .replace(/{endereco}/g, fullAddress);
-
-            return message;
-        }
-    } catch (err) {
-        console.log('Failed to load templates, using fallback:', err);
-    }
-
-    // Fallback messages if templates not available
-    switch (status) {
-        case 'processando':
-            const itemsList = order.items.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
-            return `Olá ${firstName}! 🛒\n\nSeu pedido *#${shortId}* foi recebido e está sendo processado.\n\n*Itens:*\n${itemsList}\n\n*Total:* R$ ${order.total.toFixed(2).replace('.', ',')}\n*Endereço:* ${order.address.street}, ${order.address.number}, ${order.address.neighborhood}\n\nEm breve atualizaremos você!`;
-        case 'separando':
-            return `Olá ${firstName}! Já estamos separando os itens do seu pedido *#${shortId}*. Em breve sairá para entrega! 📦`;
-        case 'em_rota':
-            return `Olá ${firstName}! Seu pedido *#${shortId}* acabou de sair para entrega. Fique atento(a) à campainha! 🚚`;
-        case 'entregue':
-            return `Pedido *#${shortId}* entregue! Muito obrigado por comprar conosco. ⭐`;
-        default:
-            return `Olá ${firstName}! Status do seu pedido *#${shortId}* atualizado para: ${status}`;
-    }
-};
 
 // --- Draggable Card Component ---
 const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOrder, setExpandedOrder }: any) => {
@@ -339,20 +288,6 @@ export default function Orders() {
         }
     };
 
-    // Helper to send via Bot
-    const sendViaBot = async (phone: string, message: string) => {
-        try {
-            const response = await fetch(`${BOT_API_URL}/send`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, message })
-            });
-            const data = await response.json();
-            return data.success;
-        } catch (err) {
-            return false; // Bot offline or error
-        }
-    };
 
     const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
         try {
@@ -375,7 +310,7 @@ export default function Orders() {
 
             // Handle Notification
             if (order) {
-                const message = await getWhatsappMessage(newStatus, order);
+                const message = await getWhatsAppMessage(newStatus, order);
                 const phoneNumber = `55${order.user.phone}`;
                 const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
@@ -386,7 +321,7 @@ export default function Orders() {
                     duration: 2000,
                 });
 
-                const sentByBot = await sendViaBot(phoneNumber, message);
+                const sentByBot = await sendWhatsAppMessage(phoneNumber, message);
 
                 if (sentByBot) {
                     toast({
