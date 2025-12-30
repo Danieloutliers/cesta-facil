@@ -20,7 +20,7 @@ export function CartPanel() {
       {/* Backdrop for expanded state */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity duration-300",
+          "fixed inset-0 bg-black/60 backdrop-blur-md z-[60] transition-opacity duration-300",
           isExpanded ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={() => setIsExpanded(false)}
@@ -28,7 +28,7 @@ export function CartPanel() {
 
       <div
         className={cn(
-          "fixed left-0 right-0 z-40 transition-all duration-500 cubic-bezier(0.32, 0.72, 0, 1)",
+          "fixed left-0 right-0 z-[70] transition-all duration-500 cubic-bezier(0.32, 0.72, 0, 1)",
           "bottom-[calc(env(safe-area-inset-bottom,0px))] md:bottom-0",
           isExpanded ? "translate-y-0" : "translate-y-0"
         )}
