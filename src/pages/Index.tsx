@@ -3,7 +3,6 @@ import { ShoppingCart, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { MobileNavBar } from '@/components/MobileNavBar';
 import { BudgetCard } from '@/components/BudgetCard';
 import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { useCart } from '@/contexts/CartContext';
@@ -73,7 +72,6 @@ const Index = () => {
             </section>
 
             <Footer />
-            <MobileNavBar />
         </div>
     );
 };
