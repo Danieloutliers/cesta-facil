@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Truck, Check } from 'lucide-react';
+import { ArrowLeft, MapPin, Truck, Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { MobileNavBar } from '@/components/MobileNavBar';
 import { PreferencesCard } from '@/components/PreferencesCard';
 import { PaymentMethodCard } from '@/components/PaymentMethodCard';
 import { useCart } from '@/contexts/CartContext';
@@ -16,26 +15,49 @@ import { cn } from '@/lib/utils';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, total, budget, savings, addOrder, itemCount } = useCart();
+  const { items, total, budget, savings, addOrder, itemCount, orders } = useCart();
   const [step, setStep] = useState<'address' | 'preferences' | 'success'>('address');
   const [missingPreference, setMissingPreference] = useState<'substituir' | 'credito'>('substituir');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [address, setAddress] = useState<Address>({
-    cep: '',
+    cep: '46430-000', // CEP Geral de Guanambi
     street: '',
     number: '',
     complement: '',
     neighborhood: '',
-    city: '',
-    state: '',
+    city: 'Guanambi',
+    state: 'BA',
   });
+
+  // Load address from last order if available
+  useEffect(() => {
+    if (orders.length > 0) {
+      const lastOrder = orders[0];
+      if (lastOrder.address) {
+        setAddress((prev) => ({
+          ...prev,
+          ...lastOrder.address,
+          // Enforce Guanambi/BA even if old order had different one
+          city: 'Guanambi',
+          state: 'BA',
+          cep: '46430-000',
+        }));
+
+        toast({
+          title: "Endereço Encontrado",
+          description: "Carregamos o endereço do seu último pedido.",
+          duration: 3000,
+        });
+      }
+    }
+  }, [orders, toast]);
 
   const handleAddressChange = (field: keyof Address, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }));
   };
 
-  const isAddressValid = address.cep && address.street && address.number && address.neighborhood && address.city && address.state;
+  const isAddressValid = address.street && address.number && address.neighborhood;
 
   const handleSubmit = async () => {
     if (step === 'address' && isAddressValid) {
@@ -63,147 +85,138 @@ const Checkout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/50 via-background to-background dark:from-slate-950 dark:via-background dark:to-background">
       <Header />
 
-      <main className="container py-8 pb-24 md:pb-8">
+      <main className="container py-8 pb-24 md:pb-12">
         {step !== 'success' && (
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6 hover:bg-primary/5 hover:text-primary transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+            Voltar para a loja
           </Button>
         )}
 
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {step === 'success' ? (
-            <div className="text-center py-16 animate-fade-in">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary mx-auto mb-6">
-                <Check className="h-10 w-10 text-primary-foreground" />
+            <div className="text-center py-20 animate-fade-in">
+              <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-green-500/10 mx-auto mb-8 ring-8 ring-green-500/5">
+                <div className="absolute inset-0 rounded-full animate-ping bg-green-500/20 duration-1000" />
+                <Check className="h-10 w-10 text-green-600 dark:text-green-400 relative z-10" />
               </div>
-              <h1 className="text-3xl font-bold mb-4">Pedido Confirmado!</h1>
-              <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                Seu pedido foi recebido com sucesso. Você receberá atualizações sobre a entrega.
+              <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600">Pedido Confirmado!</h1>
+              <p className="text-muted-foreground mb-10 max-w-md mx-auto text-lg leading-relaxed">
+                Seu pedido foi recebido com sucesso. Em breve entraremos em contato para confirmar a entrega.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button onClick={() => navigate('/historico')}>
-                  Ver Meus Pedidos
+                <Button onClick={() => navigate('/')} className="w-full sm:w-auto bg-primary hover:bg-primary/90 h-12 px-8 text-lg font-medium shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
+                  Voltar ao Início
                 </Button>
-                <Button variant="outline" onClick={() => navigate('/montar-cesta')}>
-                  Fazer Novo Pedido
+                <Button variant="outline" onClick={() => navigate('/historico')} className="w-full sm:w-auto h-12 px-8 text-lg font-medium border-primary/20 hover:bg-primary/5 hover:text-primary transition-all">
+                  Ver Meus Pedidos
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="grid lg:grid-cols-3 gap-8">
-              {/* Form */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Progress */}
-                <div className="flex items-center gap-4 mb-8">
+            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 lg:gap-12">
+              {/* Left Column - Steps & Forms */}
+              <div className="lg:col-span-7 space-y-8">
+
+                {/* Modern Progress Steps */}
+                <div className="bg-card/40 backdrop-blur-md border border-border/50 rounded-2xl p-4 mb-8 flex items-center justify-center gap-4 shadow-sm">
                   <div className={cn(
-                    "flex items-center gap-2",
-                    step === 'address' ? "text-primary" : "text-muted-foreground"
+                    "flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300",
+                    step === 'address' ? "bg-primary/10 text-primary ring-1 ring-primary/20" : "text-muted-foreground opacity-50"
                   )}>
                     <div className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold",
-                      step === 'address' ? "bg-primary text-primary-foreground" : "bg-muted"
-                    )}>
-                      1
-                    </div>
-                    <span className="text-sm font-medium">Endereço</span>
+                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shadow-sm transition-all",
+                      step === 'address' ? "bg-primary text-primary-foreground scale-110" : "bg-muted"
+                    )}>1</div>
+                    <span className="text-sm font-bold tracking-tight">Endereço</span>
                   </div>
-                  <div className="flex-1 h-0.5 bg-border" />
+
+                  <div className="w-12 h-1 rounded-full bg-border/50" />
+
                   <div className={cn(
-                    "flex items-center gap-2",
-                    step === 'preferences' ? "text-primary" : "text-muted-foreground"
+                    "flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300",
+                    step === 'preferences' ? "bg-primary/10 text-primary ring-1 ring-primary/20" : "text-muted-foreground opacity-50"
                   )}>
                     <div className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold",
-                      step === 'preferences' ? "bg-primary text-primary-foreground" : "bg-muted"
-                    )}>
-                      2
-                    </div>
-                    <span className="text-sm font-medium">Preferências</span>
+                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shadow-sm transition-all",
+                      step === 'preferences' ? "bg-primary text-primary-foreground scale-110" : "bg-muted"
+                    )}>2</div>
+                    <span className="text-sm font-bold tracking-tight">Pagamento</span>
                   </div>
                 </div>
 
                 {step === 'address' && (
-                  <div className="bg-card rounded-2xl border border-border p-6 shadow-card animate-fade-in">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
-                        <MapPin className="h-5 w-5 text-primary" />
+                  <div className="bg-card/80 backdrop-blur-xl rounded-3xl border border-border/50 p-6 md:p-8 shadow-xl shadow-black/5 animate-in slide-in-from-left-4 duration-500">
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20 shadow-inner">
+                        <MapPin className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <h2 className="font-semibold">Endereço de Entrega</h2>
-                        <p className="text-sm text-muted-foreground">Onde devemos entregar sua cesta?</p>
+                        <h2 className="text-2xl font-bold tracking-tight">Onde entregar?</h2>
+                        <p className="text-sm text-muted-foreground font-medium">Informe os dados para receber sua cesta.</p>
                       </div>
                     </div>
 
-                    <div className="grid gap-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="cep">CEP</Label>
-                          <Input
-                            id="cep"
-                            placeholder="00000-000"
-                            value={address.cep}
-                            onChange={(e) => handleAddressChange('cep', e.target.value)}
-                          />
+                    {/* Location Alert - Premium Style */}
+                    <div className="relative overflow-hidden bg-amber-500/5 border border-amber-500/10 rounded-2xl p-5 mb-8 group hover:border-amber-500/30 transition-colors">
+                      <div className="absolute -right-4 -top-4 bg-amber-500/10 w-24 h-24 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all" />
+                      <div className="flex items-start gap-4 relative z-10">
+                        <div className="p-2.5 bg-amber-500/10 rounded-xl">
+                          <MapPin className="h-5 w-5 text-amber-600 dark:text-amber-500" />
                         </div>
                         <div>
-                          <Label htmlFor="state">Estado</Label>
-                          <Input
-                            id="state"
-                            placeholder="SP"
-                            value={address.state}
-                            onChange={(e) => handleAddressChange('state', e.target.value)}
-                          />
+                          <h3 className="font-bold text-amber-700 dark:text-amber-500 text-base mb-1">
+                            Entrega Exclusiva
+                          </h3>
+                          <p className="text-sm text-muted-foreground font-medium leading-relaxed">
+                            Este serviço está disponível apenas para <span className="text-foreground bg-amber-500/10 px-1.5 py-0.5 rounded-md border border-amber-500/10">Guanambi-BA</span>.
+                          </p>
                         </div>
                       </div>
-                      <div>
-                        <Label htmlFor="city">Cidade</Label>
+                    </div>
+
+                    <div className="grid gap-5">
+                      <div className="grid gap-2">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">Bairro</Label>
                         <Input
-                          id="city"
-                          placeholder="São Paulo"
-                          value={address.city}
-                          onChange={(e) => handleAddressChange('city', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="neighborhood">Bairro</Label>
-                        <Input
-                          id="neighborhood"
-                          placeholder="Centro"
+                          placeholder="Ex: Centro, São Sebastião, Ipiranga..."
                           value={address.neighborhood}
                           onChange={(e) => handleAddressChange('neighborhood', e.target.value)}
+                          className="h-12 rounded-xl bg-background/50 border-input/50 focus:bg-background transition-all hover:border-primary/50 focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="col-span-2">
-                          <Label htmlFor="street">Rua</Label>
+
+                      <div className="grid grid-cols-4 gap-5">
+                        <div className="col-span-3 grid gap-2">
+                          <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">Rua</Label>
                           <Input
-                            id="street"
-                            placeholder="Rua das Flores"
+                            placeholder="Nome da sua rua"
                             value={address.street}
                             onChange={(e) => handleAddressChange('street', e.target.value)}
+                            className="h-12 rounded-xl bg-background/50 border-input/50 focus:bg-background transition-all hover:border-primary/50 focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
-                        <div>
-                          <Label htmlFor="number">Número</Label>
+                        <div className="grid gap-2">
+                          <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">Número</Label>
                           <Input
-                            id="number"
                             placeholder="123"
                             value={address.number}
                             onChange={(e) => handleAddressChange('number', e.target.value)}
+                            className="h-12 rounded-xl bg-background/50 border-input/50 focus:bg-background transition-all hover:border-primary/50 focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
                       </div>
-                      <div>
-                        <Label htmlFor="complement">Complemento (opcional)</Label>
+
+                      <div className="grid gap-2">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">Complemento</Label>
                         <Input
-                          id="complement"
-                          placeholder="Apto 101"
+                          placeholder="Ex: Próximo à praça, Casa azul..."
                           value={address.complement}
                           onChange={(e) => handleAddressChange('complement', e.target.value)}
+                          className="h-12 rounded-xl bg-background/50 border-input/50 focus:bg-background transition-all hover:border-primary/50 focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                     </div>
@@ -211,7 +224,7 @@ const Checkout = () => {
                 )}
 
                 {step === 'preferences' && (
-                  <div className="space-y-6 animate-fade-in">
+                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
                     <PreferencesCard
                       value={missingPreference}
                       onChange={setMissingPreference}
@@ -223,62 +236,128 @@ const Checkout = () => {
 
                 <Button
                   size="lg"
-                  className="w-full"
+                  className="w-full h-14 text-base font-bold rounded-2xl shadow-xl shadow-primary/25 hover:scale-[1.02] hover:shadow-primary/40 active:scale-[0.98] transition-all bg-gradient-to-r from-primary to-primary/90"
                   onClick={handleSubmit}
                   disabled={(step === 'address' && !isAddressValid) || loading}
                 >
-                  {loading ? 'Processando...' : (step === 'address' ? 'Continuar' : 'Confirmar Pedido')}
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Processando...</span>
+                    </div>
+                  ) : (step === 'address' ? (
+                    <span className="flex items-center gap-2">Continuar para Pedido <ArrowRight className="w-5 h-5" /></span>
+                  ) : 'Confirmar Pedido')}
                 </Button>
               </div>
 
-              {/* Order Summary */}
-              <div className="lg:sticky lg:top-24 h-fit">
-                <div className="bg-card rounded-2xl border border-border p-6 shadow-card">
-                  <h3 className="font-semibold text-lg mb-4">Resumo do Pedido</h3>
+              {/* Order Summary - New Design */}
+              <div className="lg:col-span-5 space-y-6">
+                <div className="lg:sticky lg:top-24 h-fit animate-in fade-in duration-700 delay-100">
+                  <div className="bg-card/60 backdrop-blur-xl rounded-2xl border border-border/50 p-6 shadow-2xl shadow-black/5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-                  <div className="max-h-48 overflow-y-auto space-y-3 mb-4">
-                    {items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-12 w-12 rounded-lg object-cover"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">{item.quantity}x</p>
-                        </div>
-                        <p className="text-sm font-semibold">
-                          R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
-                        </p>
+                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                      <div className="p-1.5 bg-primary/10 rounded-lg">
+                        <Truck className="h-4 w-4 text-primary" />
                       </div>
-                    ))}
+                      Resumo do Pedido
+                    </h3>
+
+                    <div className="space-y-6 mb-6">
+                      {/* Alimentos Section */}
+                      {items.some(i => ['alimentos', 'bebidas'].includes(i.category)) && (
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-2 mb-2">
+                            <div className="h-px flex-1 bg-border/60" />
+                            Alimentos & Bebidas
+                            <div className="h-px flex-1 bg-border/60" />
+                          </h4>
+                          {items.filter(i => ['alimentos', 'bebidas'].includes(i.category)).map((item) => (
+                            <div key={item.id} className="flex items-center gap-3 group">
+                              <div className="relative">
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="h-12 w-12 rounded-xl object-cover ring-1 ring-border shadow-sm group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute -top-2 -left-2 bg-background border shadow-xs text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full z-10">
+                                  {item.quantity}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{item.name}</p>
+                                <p className="text-xs text-muted-foreground">Unit: R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                              </div>
+                              <p className="text-sm font-semibold">
+                                R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Limpeza Section */}
+                      {items.some(i => ['limpeza', 'higiene'].includes(i.category)) && (
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-2 mb-2 pt-2">
+                            <div className="h-px flex-1 bg-border/60" />
+                            Limpeza & Higiene
+                            <div className="h-px flex-1 bg-border/60" />
+                          </h4>
+                          {items.filter(i => ['limpeza', 'higiene'].includes(i.category)).map((item) => (
+                            <div key={item.id} className="flex items-center gap-3 group">
+                              <div className="relative">
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="h-12 w-12 rounded-xl object-cover ring-1 ring-border shadow-sm group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute -top-2 -left-2 bg-background border shadow-xs text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full z-10">
+                                  {item.quantity}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{item.name}</p>
+                                <p className="text-xs text-muted-foreground">Unit: R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                              </div>
+                              <p className="text-sm font-semibold">
+                                R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-dashed border-border/60 pt-6 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-medium">R$ {total.toFixed(2).replace('.', ',')}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Entrega</span>
+                        <span className="text-green-600 font-bold bg-green-500/10 px-2 py-0.5 rounded text-xs uppercase tracking-wide">Grátis</span>
+                      </div>
+
+                      <div className="my-2 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+                      <div className="flex justify-between items-end pt-1">
+                        <span className="font-bold text-lg">Total</span>
+                        <div className="text-right">
+                          <span className="block text-2xl font-black text-primary tracking-tight">
+                            R$ {total.toFixed(2).replace('.', ',')}
+                          </span>
+                          <span className="text-xs text-muted-foreground">em até 3x sem juros</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="border-t border-border pt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Orçamento</span>
-                      <span>R$ {budget.toFixed(2).replace('.', ',')}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>R$ {total.toFixed(2).replace('.', ',')}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Entrega</span>
-                      <span className="text-primary font-medium">Grátis</span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border">
-                      <span>Total</span>
-                      <span className="text-primary">R$ {total.toFixed(2).replace('.', ',')}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 p-3 bg-secondary rounded-xl">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Truck className="h-4 w-4 text-primary" />
-                      <span>Entrega em até 48 horas</span>
-                    </div>
+                  {/* Security Badge */}
+                  <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground opacity-60">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    Compra 100% Segura e Criptografada
                   </div>
                 </div>
               </div>
@@ -287,7 +366,6 @@ const Checkout = () => {
         </div>
       </main>
 
-      <MobileNavBar />
       <Footer />
     </div>
   );

@@ -9,18 +9,36 @@ export function PaymentMethodCard() {
 
             {/* Content */}
             <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20 backdrop-blur-sm">
                         <Banknote className="h-6 w-6 text-primary-foreground" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-white text-lg">Pagamento na Entrega</h3>
+                        <h3 className="font-semibold text-white text-lg">Forma de Pagamento</h3>
+                        <p className="text-neutral-400 text-sm">Escolha como prefere pagar</p>
                     </div>
                 </div>
 
-                <p className="text-neutral-300 text-sm mb-6">
-                    Você pode pagar com PIX, cartão de crédito/débito ou dinheiro no momento da entrega.
-                    Não cobramos nada antecipadamente.
+                {/* Destaque Carnê */}
+                <div className="mb-6 bg-gradient-to-r from-primary/20 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden group hover:border-primary/40 transition-colors">
+                    <div className="absolute top-0 right-0 bg-primary/20 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-wider text-white">
+                        Destaque
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="bg-primary/20 p-3 rounded-lg">
+                            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-base">Carnê Digital</h4>
+                            <p className="text-neutral-300 text-xs mt-0.5">Parcele suas compras sem cartão</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p className="text-neutral-300 text-sm mb-4">
+                    Também aceitamos no momento da entrega:
                 </p>
 
                 {/* Payment method pills */}
