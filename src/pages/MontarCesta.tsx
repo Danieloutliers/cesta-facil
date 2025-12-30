@@ -21,17 +21,16 @@ const MontarCesta = () => {
   const { products, loading: loadingProducts, refetch } = useProducts();
   const { categories, loading: loadingCategories } = useCategories();
 
-  // Hide/Show Header on scroll
+  // Hide/Show Header based on sticky bar position
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        // Scrolling down & past threshold
-        setShowHeader(false);
-      } else if (currentScrollY < lastScrollY) {
-        // Scrolling up
+      // Header visível apenas no topo (antes da sticky bar grudar)
+      if (currentScrollY < 150) {
         setShowHeader(true);
+      } else {
+        setShowHeader(false);
       }
 
       setLastScrollY(currentScrollY);
