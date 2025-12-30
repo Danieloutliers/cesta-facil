@@ -95,7 +95,7 @@ export function PromoBanner() {
         <div className="relative overflow-hidden rounded-2xl shadow-lg group">
             <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
-                    {slides.map((slide) => (
+                    {slides.map((slide, index) => (
                         <div key={slide.id} className="relative flex-[0_0_100%] min-w-0">
                             <div className="relative h-48 md:h-56 w-full flex items-center overflow-hidden rounded-2xl">
                                 {/* Background Image */}
@@ -104,6 +104,9 @@ export function PromoBanner() {
                                         <img
                                             src={slide.image}
                                             alt={slide.title}
+                                            loading={index === 0 ? "eager" : "lazy"}
+                                            decoding="async"
+                                            fetchPriority={index === 0 ? "high" : "auto"}
                                             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                                         />
                                         {/* Gradient Overlay for Text Readability */}

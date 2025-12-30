@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,32 @@ import { useProducts, useCategories, seedDatabase } from '@/hooks/useData';
 const MontarCesta = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('todos');
+  const [showHeader, setShowHeader] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const { budget } = useCart();
 
   const { products, loading: loadingProducts, refetch } = useProducts();
   const { categories, loading: loadingCategories } = useCategories();
+
+  // Hide/Show Header on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down & past threshold
+        setShowHeader(false);
+      } else if (currentScrollY < lastScrollY) {
+        // Scrolling up
+        setShowHeader(true);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const handleSeed = async () => {
     if (confirm('Deseja popular o banco de dados com os produtos padrão?')) {
@@ -39,34 +61,40 @@ const MontarCesta = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      {/* Sticky Header with auto-hide */}
+      <div
+        className={cn(
+          "sticky top-0 z-50 transition-transform duration-300",
+          !showHeader && "-translate-y-full"
+        )}
+      >
+        <Header />
+      </div>
 
       <main className="container px-4 md:px-6 py-6 pb-40 md:pb-32">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-8">
-          <div className="flex-1">
-            <PromoBanner />
-          </div>
+        {/* Banner */}
+        <div className="mb-6">
+          <PromoBanner />
+        </div>
 
-
-          {/* Search Input */}
-          <div className="w-full md:w-auto relative">
+        {/* Sticky Search Input & Categories - Agora juntos como barra fixa */}
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md py-3 -mx-4 px-4 shadow-sm mb-6 border-b border-border/40 md:static md:shadow-none md:p-0 md:bg-transparent md:mx-0 md:border-0">
+          {/* Search */}
+          <div className="w-full relative max-w-2xl mx-auto mb-3">
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-foreground transition-colors" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
                 type="text"
                 placeholder="Buscar produtos..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full md:w-80 h-12 pl-12 rounded-xl bg-background border-input focus-visible:ring-primary focus-visible:border-primary transition-all shadow-sm"
+                className="w-full h-10 pl-11 text-sm rounded-xl bg-background border-input focus-visible:ring-primary focus-visible:border-primary transition-all shadow-sm"
               />
             </div>
           </div>
-        </div>
 
-        {/* Categories Scroll Area (Horizontal Snap) */}
-        <div className="mb-8 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex overflow-x-auto pb-4 gap-2 snap-x hide-scrollbar">
+          {/* Categories Scroll Area (Horizontal Snap) */}
+          <div className="flex overflow-x-auto pb-2 gap-2 snap-x hide-scrollbar">
             {categories.map((category) => (
               <Button
                 key={category.id}

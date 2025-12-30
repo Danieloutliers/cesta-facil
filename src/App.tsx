@@ -7,22 +7,26 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import MontarCesta from "./pages/MontarCesta";
-import Checkout from "./pages/Checkout";
-import Historico from "./pages/Historico";
-import Login from "./pages/Login";
-import AdminLayout from "./layouts/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import Orders from "./pages/admin/Orders";
-import WhatsappConnect from './pages/admin/Whatsapp';
-import Customers from "./pages/admin/Customers";
-import BudgetOptions from "./pages/admin/BudgetOptions";
-import Products from "./pages/admin/Products";
-import Categories from "./pages/admin/Categories";
-import Settings from "./pages/admin/Settings";
-import Reports from "./pages/admin/Reports";
-import NotFound from "./pages/NotFound";
+import { Suspense, lazy } from "react";
+import { Loading } from "@/components/Loading";
+
+// Lazy loading pages
+const Index = lazy(() => import("./pages/Index"));
+const MontarCesta = lazy(() => import("./pages/MontarCesta"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const Historico = lazy(() => import("./pages/Historico"));
+const Login = lazy(() => import("./pages/Login"));
+const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const Orders = lazy(() => import("./pages/admin/Orders"));
+const WhatsappConnect = lazy(() => import('./pages/admin/Whatsapp'));
+const Customers = lazy(() => import("./pages/admin/Customers"));
+const BudgetOptions = lazy(() => import("./pages/admin/BudgetOptions"));
+const Products = lazy(() => import("./pages/admin/Products"));
+const Categories = lazy(() => import("./pages/admin/Categories"));
+const Settings = lazy(() => import("./pages/admin/Settings"));
+const Reports = lazy(() => import("./pages/admin/Reports"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -35,25 +39,27 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/montar-cesta" element={<MontarCesta />} />
-                <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-                <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="orders" element={<Orders />} />
-                  <Route path="products" element={<Products />} />
-                  <Route path="categories" element={<Categories />} />
-                  <Route path="budgets" element={<BudgetOptions />} />
-                  <Route path="customers" element={<Customers />} />
-                  <Route path="whatsapp" element={<WhatsappConnect />} />
-                  <Route path="reports" element={<Reports />} />
-                  <Route path="settings" element={<Settings />} />
-                </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <Suspense fallback={<Loading />}>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/montar-cesta" element={<MontarCesta />} />
+                  <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+                  <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
+                  <Route path="/admin" element={<AdminLayout />}>
+                    <Route index element={<Dashboard />} />
+                    <Route path="orders" element={<Orders />} />
+                    <Route path="products" element={<Products />} />
+                    <Route path="categories" element={<Categories />} />
+                    <Route path="budgets" element={<BudgetOptions />} />
+                    <Route path="customers" element={<Customers />} />
+                    <Route path="whatsapp" element={<WhatsappConnect />} />
+                    <Route path="reports" element={<Reports />} />
+                    <Route path="settings" element={<Settings />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </BrowserRouter>
           </CartProvider>
         </AuthProvider>
