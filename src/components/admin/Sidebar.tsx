@@ -12,7 +12,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Store,
-    DollarSign
+    DollarSign,
+    Image
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
@@ -77,6 +78,11 @@ const navGroups: NavGroup[] = [
                 title: 'Orçamentos',
                 href: '/admin/budgets',
                 icon: DollarSign
+            },
+            {
+                title: 'Banners',
+                href: '/admin/banners',
+                icon: Image
             }
         ]
     },

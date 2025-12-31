@@ -1,74 +1,96 @@
 import { useEffect, useState, useCallback } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Percent, ShoppingBag, CreditCard, Truck, Beef, Apple } from 'lucide-react';
+import { Percent, ShoppingBag, CreditCard, Truck, Beef, Apple, Gift, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
+import { useBanners } from '@/hooks/useBanners';
+import { Banner } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
-interface Slide {
-    id: number;
-    title: string;
-    description: string;
-    icon: React.ReactNode;
-    gradient: string;
-    image?: string;
-    buttonText?: string;
-}
+// Icon mapping from string to component
+const iconMap: Record<string, React.ReactNode> = {
+    'Percent': <Percent className="h-6 w-6 text-white" />,
+    'Beef': <Beef className="h-6 w-6 text-white" />,
+    'Apple': <Apple className="h-6 w-6 text-white" />,
+    'CreditCard': <CreditCard className="h-6 w-6 text-white" />,
+    'Truck': <Truck className="h-6 w-6 text-white" />,
+    'ShoppingBag': <ShoppingBag className="h-6 w-6 text-white" />,
+    'Gift': <Gift className="h-6 w-6 text-white" />,
+    'Star': <Star className="h-6 w-6 text-white" />,
+};
 
-const slides: Slide[] = [
+// Fallback banners if database is empty
+const fallbackBanners: Banner[] = [
     {
-        id: 1,
+        id: '1',
         title: "Ofertas da Semana",
         description: "Descontos imperdíveis em produtos selecionados para sua despensa.",
-        icon: <Percent className="h-6 w-6 text-white" />,
+        icon: 'Percent',
         gradient: "from-violet-600 to-indigo-600",
-        image: "/banner_promo_geral.jpg",
-        buttonText: "Ver Ofertas"
+        image_url: "/banner_promo_geral.jpg",
+        button_text: "Ver Ofertas",
+        link: "/montar-cesta",
+        display_order: 1,
+        active: true
     },
     {
-        id: 2,
+        id: '2',
         title: "Festival de Carnes",
         description: "Cortes selecionados para seu churrasco com preços especiais.",
-        icon: <Beef className="h-6 w-6 text-white" />,
+        icon: 'Beef',
         gradient: "from-red-600 to-rose-600",
-        image: "/banner_carnes.jpg",
-        buttonText: "Confira"
+        image_url: "/banner_carnes.jpg",
+        button_text: "Confira",
+        link: "/montar-cesta?category=carnes",
+        display_order: 2,
+        active: true
     },
     {
-        id: 3,
+        id: '3',
         title: "Hortifruti Fresquinho",
         description: "Frutas, legumes e verduras direto do produtor para sua mesa.",
-        icon: <Apple className="h-6 w-6 text-white" />,
+        icon: 'Apple',
         gradient: "from-green-600 to-emerald-600",
-        image: "/banner_hortifruti.jpg",
-        buttonText: "Aproveite"
+        image_url: "/banner_hortifruti.jpg",
+        button_text: "Aproveite",
+        link: "/montar-cesta?category=hortifruti",
+        display_order: 3,
+        active: true
     },
     {
-        id: 4,
+        id: '4',
         title: "Compre e Pague Parcelado",
         description: "Facilidade total! Parcele suas compras sem juros no cartão.",
-        icon: <CreditCard className="h-6 w-6 text-white" />,
+        icon: 'CreditCard',
         gradient: "from-blue-600 to-cyan-600",
-        image: "/banner_pagamento.jpg",
-        buttonText: "Saiba Mais"
+        image_url: "/banner_pagamento.jpg",
+        button_text: "Saiba Mais",
+        link: "/montar-cesta",
+        display_order: 4,
+        active: true
     },
     {
-        id: 5,
+        id: '5',
         title: "Entrega Rápida",
         description: "Receba suas compras no conforto de casa em tempo recorde.",
-        icon: <Truck className="h-6 w-6 text-white" />,
+        icon: 'Truck',
         gradient: "from-orange-500 to-amber-500",
-        image: "/banner_entrega.jpg",
-        buttonText: "Pedir Agora"
+        image_url: "/banner_entrega.jpg",
+        button_text: "Pedir Agora",
+        link: "/montar-cesta",
+        display_order: 5,
+        active: true
     }
 ];
 
 export function PromoBanner() {
+    const { banners: dbBanners, loading } = useBanners();
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const navigate = useNavigate();
 
-    const scrollNext = useCallback(() => {
-        if (emblaApi) emblaApi.scrollNext();
-    }, [emblaApi]);
+    // Use database banners if available, otherwise use fallback
+    const slides = dbBanners.length > 0 ? dbBanners : fallbackBanners;
 
     const onSelect = useCallback(() => {
         if (!emblaApi) return;
@@ -91,6 +113,22 @@ export function PromoBanner() {
         return () => clearInterval(intervalId);
     }, [emblaApi, onSelect]);
 
+    const handleBannerClick = (link?: string) => {
+        if (!link) return;
+
+        if (link.startsWith('http')) {
+            window.open(link, '_blank');
+        } else {
+            navigate(link);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="relative overflow-hidden rounded-2xl shadow-lg h-48 md:h-56 bg-muted animate-pulse" />
+        );
+    }
+
     return (
         <div className="relative overflow-hidden rounded-2xl shadow-lg group">
             <div className="overflow-hidden" ref={emblaRef}>
@@ -99,10 +137,10 @@ export function PromoBanner() {
                         <div key={slide.id} className="relative flex-[0_0_100%] min-w-0">
                             <div className="relative h-48 md:h-56 w-full flex items-center overflow-hidden rounded-2xl">
                                 {/* Background Image */}
-                                {slide.image && (
+                                {slide.image_url && (
                                     <div className="absolute inset-0 z-0">
                                         <img
-                                            src={slide.image}
+                                            src={slide.image_url}
                                             alt={slide.title}
                                             loading={index === 0 ? "eager" : "lazy"}
                                             decoding="async"
@@ -110,11 +148,21 @@ export function PromoBanner() {
                                             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                                         />
                                         {/* Gradient Overlay for Text Readability */}
-                                        <div className={cn(
-                                            "absolute inset-0 bg-gradient-to-r mix-blend-multiply opacity-90",
-                                            slide.gradient
-                                        )} />
-                                        <div className="absolute inset-0 bg-black/20" />
+                                        {slide.gradient && slide.gradient !== 'none' && (
+                                            <div className={cn(
+                                                "absolute inset-0 bg-gradient-to-r mix-blend-multiply opacity-90",
+                                                slide.gradient
+                                            )} />
+                                        )}
+                                        <div
+                                            className={cn(
+                                                "absolute inset-0",
+                                                !slide.gradient && !slide.use_blur && "bg-black/20"
+                                            )}
+                                            style={{
+                                                backdropFilter: slide.use_blur ? `blur(${slide.blur_amount || 4}px)` : undefined
+                                            }}
+                                        />
                                     </div>
                                 )}
 
@@ -122,7 +170,7 @@ export function PromoBanner() {
                                 <div className="relative z-10 w-full p-6 md:p-8 flex items-center justify-between gap-6">
                                     <div className="space-y-3 flex-1 animate-in fade-in slide-in-from-left-4 duration-500">
                                         <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-md border border-white/10 w-fit">
-                                            {slide.icon}
+                                            {iconMap[slide.icon] || iconMap['ShoppingBag']}
                                             <span className="uppercase tracking-wide">Destaque</span>
                                         </div>
 
@@ -134,21 +182,23 @@ export function PromoBanner() {
                                             {slide.description}
                                         </p>
 
-                                        <Button
-                                            onClick={scrollNext}
-                                            variant="secondary"
-                                            size="sm"
-                                            className="mt-2 bg-white/90 hover:bg-white text-slate-900 border-0 font-semibold shadow-md rounded-xl active:scale-95 transition-transform"
-                                        >
-                                            {slide.buttonText}
-                                        </Button>
+                                        {slide.button_text && (
+                                            <Button
+                                                onClick={() => handleBannerClick(slide.link)}
+                                                variant="secondary"
+                                                size="sm"
+                                                className="mt-2 bg-white/90 hover:bg-white text-slate-900 border-0 font-semibold shadow-md rounded-xl active:scale-95 transition-transform"
+                                            >
+                                                {slide.button_text}
+                                            </Button>
+                                        )}
                                     </div>
 
                                     {/* Right Side Icon Placeholder area - Only visible if image fails or decorative */}
                                     {/* Hidden on mobile, simplistic on desktop to not clutter the image */}
                                     <div className="hidden md:flex flex-col items-center justify-center p-4">
                                         <div className="h-20 w-20 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-2xl rotate-6 group-hover:rotate-12 transition-transform duration-700">
-                                            {slide.icon && <div className="scale-[2] drop-shadow-lg">{slide.icon}</div>}
+                                            {slide.icon && <div className="scale-[2] drop-shadow-lg">{iconMap[slide.icon] || iconMap['ShoppingBag']}</div>}
                                         </div>
                                     </div>
                                 </div>

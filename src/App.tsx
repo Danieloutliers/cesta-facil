@@ -24,6 +24,7 @@ const Customers = lazy(() => import("./pages/admin/Customers"));
 const BudgetOptions = lazy(() => import("./pages/admin/BudgetOptions"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Categories = lazy(() => import("./pages/admin/Categories"));
+const Banners = lazy(() => import("./pages/admin/Banners"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -46,12 +47,17 @@ const App = () => (
                   <Route path="/montar-cesta" element={<MontarCesta />} />
                   <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                   <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
-                  <Route path="/admin" element={<AdminLayout />}>
+                  <Route path="/admin" element={
+                    <ProtectedRoute>
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }>
                     <Route index element={<Dashboard />} />
                     <Route path="orders" element={<Orders />} />
                     <Route path="products" element={<Products />} />
                     <Route path="categories" element={<Categories />} />
                     <Route path="budgets" element={<BudgetOptions />} />
+                    <Route path="banners" element={<Banners />} />
                     <Route path="customers" element={<Customers />} />
                     <Route path="whatsapp" element={<WhatsappConnect />} />
                     <Route path="reports" element={<Reports />} />

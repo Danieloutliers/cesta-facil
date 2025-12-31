@@ -14,6 +14,7 @@ import {
 import { Plus, Search, Pencil, Trash2, Package } from 'lucide-react';
 import { useProducts, useCategories, createProduct, updateProduct, deleteProduct } from '@/hooks/useData';
 import { ProductFormDialog } from '@/components/ProductFormDialog';
+
 import { Product } from '@/types';
 
 const Products = () => {
@@ -201,7 +202,7 @@ const Products = () => {
 
       {/* Tabs by Category */}
       <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-        <TabsList>
+        <TabsList className="mb-4 flex-wrap h-auto gap-2">
           <TabsTrigger value="todos">
             Todos ({products.length})
           </TabsTrigger>
@@ -243,6 +244,8 @@ const Products = () => {
               )}
             </TabsContent>
           ))}
+
+
       </Tabs>
 
       <ProductFormDialog

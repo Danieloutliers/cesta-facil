@@ -114,14 +114,78 @@ export default function WhatsappConnect() {
     const handleDisconnect = async () => {
         if (!confirm('Tem certeza que deseja desconectar o WhatsApp?')) return;
 
+        console.log("Iniciando desconexão...");
         setLoading(true);
+
         try {
-            await fetch(`${BOT_API_URL}/logout`, { method: 'POST' });
-            setTimeout(checkStatus, 2000);
-        } catch (err) {
+            // Timeout de 5 segundos para não travar
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+            console.log(`Chamando ${BOT_API_URL}/logout`);
+            const res = await fetch(`${BOT_API_URL}/logout`, {
+                method: 'POST',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (res.ok) {
+                setStatus(null);
+                toast({ title: "Desconectado", description: "Sessão encerrada com sucesso." });
+                setTimeout(checkStatus, 1500);
+            } else {
+                throw new Error(`Erro do servidor: ${res.status}`);
+            }
+        } catch (err: any) {
             console.error('Erro ao desconectar:', err);
-            alert('Erro ao desconectar. Verifique se o robô está rodando.');
-            setLoading(false);
+
+            // Mesmo com erro, forçamos o reset da interface para o usuário não ficar travado
+            setStatus(null);
+
+            const message = err.name === 'AbortError'
+                ? "Tempo limite excedido. Reiniciando interface..."
+                : "Erro ao comunicar com o bot. Interface reiniciada.";
+
+            toast({
+                title: "Desconexão Forçada",
+                description: message,
+                variant: "destructive"
+            });
+
+            // Tenta verificar status novamente em breve
+            setTimeout(checkStatus, 3000);
+        } finally {
+            // Opcionalmente podemos deixar o checkStatus lidar com o loading, 
+            // mas aqui garantimos que não fica travado
+            if (!status) setLoading(false);
+        }
+    };
+
+    const handleReset = async () => {
+        setLoading(true);
+        toast({ title: "Reiniciando...", description: "Tentando gerar novo QR Code." });
+
+        try {
+            // Tenta desconectar sem confirmar
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            await fetch(`${BOT_API_URL}/logout`, {
+                method: 'POST',
+                signal: controller.signal
+            }).catch(() => { }); // Ignora erros de logout no reset
+
+            clearTimeout(timeoutId);
+        } finally {
+            // Sempre limpa e tenta pegar novo status
+            setStatus(null);
+            setTimeout(() => {
+                checkStatus();
+                // Se ainda falhar, tenta de novo em 3s
+                setTimeout(checkStatus, 3000);
+            }, 1000);
+
+            // Loading fica false quando checkStatus terminar
         }
     };
 
@@ -181,9 +245,27 @@ export default function WhatsappConnect() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Gerenciamento WhatsApp</h1>
-                <p className="text-muted-foreground">Gerencie mensagens e conexão com o WhatsApp</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">WhatsApp para Clientes</h1>
+                    <p className="text-muted-foreground">Envie mensagens diretamente aos seus clientes pelo seu WhatsApp</p>
+                </div>
+                <div className={`px-4 py-2 rounded-full border flex items-center gap-2 ${status?.ready
+                    ? 'bg-green-100 border-green-200 text-green-700'
+                    : 'bg-muted border-border text-muted-foreground'
+                    }`}>
+                    {status?.ready ? (
+                        <>
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="font-medium">Conectado</span>
+                        </>
+                    ) : (
+                        <>
+                            <Smartphone className="h-4 w-4" />
+                            <span className="font-medium">Não Conectado</span>
+                        </>
+                    )}
+                </div>
             </div>
 
             <Tabs defaultValue="connection" className="w-full">
@@ -207,90 +289,104 @@ export default function WhatsappConnect() {
                 </TabsList>
 
                 {/* Connection Tab */}
-                <TabsContent value="connection" className="space-y-4">
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Status da Conexão</CardTitle>
-                                <CardDescription>Verifique se o robô está online</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {loading && !status && !error ? (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <RefreshCw className="h-4 w-4 animate-spin" />
-                                        Verificando...
-                                    </div>
-                                ) : error ? (
-                                    <Alert variant="destructive">
-                                        <XCircle className="h-4 w-4" />
-                                        <AlertTitle>Robô Offline</AlertTitle>
-                                        <AlertDescription>
-                                            Inicie o robô com <code>npm run bot</code>
-                                        </AlertDescription>
-                                    </Alert>
-                                ) : status?.ready ? (
-                                    <Alert className="bg-green-50 border-green-200 text-green-900">
-                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                        <AlertTitle>Conectado!</AlertTitle>
-                                        <AlertDescription>
-                                            WhatsApp conectado e pronto
-                                        </AlertDescription>
-                                    </Alert>
-                                ) : (
-                                    <Alert className="bg-yellow-50 border-yellow-200 text-yellow-900">
-                                        <Smartphone className="h-4 w-4 text-yellow-600" />
-                                        <AlertTitle>Aguardando Conexão</AlertTitle>
-                                        <AlertDescription>
-                                            Escaneie o QR Code
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-
-                                <div className="flex gap-2">
-                                    <Button variant="outline" onClick={checkStatus} disabled={loading} className="flex-1">
-                                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                                        Atualizar
-                                    </Button>
-
-                                    {status?.ready && (
-                                        <Button variant="destructive" onClick={handleDisconnect} disabled={loading} className="flex-1">
-                                            <LogOut className="h-4 w-4 mr-2" />
-                                            Desconectar
-                                        </Button>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>QR Code</CardTitle>
-                                <CardDescription>Escaneie com seu celular</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex flex-col items-center justify-center py-6 min-h-[300px]">
+                {/* Connection Tab */}
+                <TabsContent value="connection" className="space-y-6">
+                    <Card>
+                        <CardContent className="flex flex-col items-center justify-center py-12 space-y-8">
+                            {/* QR Code Area */}
+                            <div className="relative">
                                 {status?.qr ? (
-                                    <div className="p-4 bg-white rounded-lg shadow-sm border">
-                                        <QRCodeSVG value={status.qr} size={256} />
+                                    <div className="p-4 bg-white rounded-xl shadow-sm border">
+                                        <QRCodeSVG value={status.qr} size={200} />
                                     </div>
                                 ) : status?.ready ? (
-                                    <div className="flex flex-col items-center gap-4 text-green-600">
-                                        <CheckCircle2 className="h-16 w-16" />
-                                        <p className="font-semibold">Sincronizado</p>
-                                    </div>
-                                ) : error ? (
-                                    <div className="flex flex-col items-center gap-4 text-muted-foreground">
-                                        <XCircle className="h-16 w-16" />
-                                        <p>Servidor desligado</p>
+                                    <div className="h-48 w-48 rounded-xl bg-green-50 border-2 border-green-100 flex items-center justify-center">
+                                        <CheckCircle2 className="h-20 w-20 text-green-600" />
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center gap-4 text-muted-foreground">
-                                        <RefreshCw className="h-16 w-16 animate-spin" />
-                                        <p>Aguardando QR Code...</p>
+                                    <div className="h-48 w-48 rounded-xl bg-muted/50 border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
+                                        <RefreshCw className="h-12 w-12 text-muted-foreground animate-spin" />
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
+                            </div>
+
+                            <div className="text-center space-y-2 max-w-md">
+                                <h2 className="text-2xl font-semibold">
+                                    {status?.ready ? 'WhatsApp Conectado' : 'Conecte seu WhatsApp'}
+                                </h2>
+                                <p className="text-muted-foreground">
+                                    {status?.ready
+                                        ? 'Seu WhatsApp está conectado e pronto para enviar mensagens.'
+                                        : 'Escaneie o QR Code para conectar seu WhatsApp e enviar mensagens diretamente aos seus clientes.'}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap justify-center gap-4 w-full max-w-md">
+                                {!status?.ready && (
+                                    <Button
+                                        className="bg-green-600 hover:bg-green-700 text-white min-w-[180px] h-11"
+                                        onClick={checkStatus}
+                                        disabled={loading}
+                                    >
+                                        <Smartphone className="h-4 w-4 mr-2" />
+                                        Conectar WhatsApp
+                                    </Button>
+                                )}
+
+                                <Button
+                                    variant="outline"
+                                    className="min-w-[180px] h-11"
+                                    onClick={checkStatus}
+                                    disabled={loading}
+                                >
+                                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                                    {status?.ready ? 'Verificar Status' : 'Tentar Reconectar'}
+                                </Button>
+
+                                {status?.ready && (
+                                    <Button
+                                        variant="destructive"
+                                        className="min-w-[180px] h-11"
+                                        onClick={handleDisconnect}
+                                    >
+                                        <LogOut className="h-4 w-4 mr-2" />
+                                        Desconectar
+                                    </Button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Connection Lost Alert - Show if error or explicitly disconnected */}
+                    {(error || (!status?.ready && !loading && !status?.qr)) && (
+                        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800 flex gap-3 items-start">
+                            <AlertTitle className="mt-0.5">
+                                <XCircle className="h-5 w-5 text-yellow-600" />
+                            </AlertTitle>
+                            <div className="space-y-1">
+                                <h4 className="font-medium leading-none text-yellow-900">Conexão perdida</h4>
+                                <p className="text-sm text-yellow-700">
+                                    Sua conexão anterior foi desconectada. Tente reconectar ou escaneie o QR Code novamente.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Footer Action */}
+                    <div className="flex justify-center">
+                        <Button
+                            variant="ghost"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={handleReset}
+                        >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Reiniciar e Gerar Novo QR
+                        </Button>
                     </div>
+
+                    <p className="text-center text-sm text-muted-foreground max-w-2xl mx-auto">
+                        Com o WhatsApp conectado, você poderá enviar notificações de cobrança e comprovantes diretamente para os telefones dos seus clientes.
+                    </p>
                 </TabsContent>
 
                 {/* Manual Send Tab */}
