@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, ChevronUp, ChevronDown, Trash2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
 
-export function CartPanel() {
+
+const CartPanelComponent = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
   const { items, total, budget, remaining, itemCount, isOverBudget, removeItem, updateQuantity } = useCart();
@@ -125,6 +126,7 @@ export function CartPanel() {
                   <img
                     src={item.image}
                     alt={item.name}
+                    loading="lazy"
                     className="h-12 w-12 rounded-lg object-cover bg-muted"
                   />
                   <div className="flex-1 min-w-0">
@@ -167,4 +169,7 @@ export function CartPanel() {
       </div>
     </>
   );
-}
+};
+
+// Memoize to prevent re-renders when parent components update
+export const CartPanel = memo(CartPanelComponent);

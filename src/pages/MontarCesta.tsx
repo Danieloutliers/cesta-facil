@@ -23,22 +23,30 @@ const MontarCesta = () => {
 
   // Hide/Show Header based on sticky bar position
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
 
-      // Header visível apenas no topo (antes da sticky bar grudar)
-      if (currentScrollY < 150) {
-        setShowHeader(true);
-      } else {
-        setShowHeader(false);
+          // Header visível apenas no topo (antes da sticky bar grudar)
+          if (currentScrollY < 150) {
+            setShowHeader(true);
+          } else {
+            setShowHeader(false);
+          }
+
+          setLastScrollY(currentScrollY);
+          ticking = false;
+        });
+        ticking = true;
       }
-
-      setLastScrollY(currentScrollY);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   const handleSeed = async () => {
     if (confirm('Deseja popular o banco de dados com os produtos padrão?')) {

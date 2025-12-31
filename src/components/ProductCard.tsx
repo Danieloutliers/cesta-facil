@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/types';
@@ -8,7 +9,7 @@ interface ProductCardProps {
   product: Product;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+const ProductCardComponent = ({ product }: ProductCardProps) => {
   const { items, addItem, removeItem } = useCart();
   const cartItem = items.find((item) => item.id === product.id);
   const quantity = cartItem?.quantity || 0;
@@ -23,6 +24,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <img
           src={product.image}
           alt={product.name}
+          loading="lazy"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
 
@@ -91,4 +93,14 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
     </div>
   );
-}
+};
+
+// Memoize with custom comparison to prevent re-renders when cart changes
+// but product data stays the same
+export const ProductCard = memo(ProductCardComponent, (prevProps, nextProps) => {
+  // Only re-render if product id or price changed
+  return prevProps.product.id === nextProps.product.id &&
+    prevProps.product.price === nextProps.product.price &&
+    prevProps.product.name === nextProps.product.name &&
+    prevProps.product.image === nextProps.product.image;
+});

@@ -99,10 +99,10 @@ export function OnboardingTutorial() {
                             key={currentStep}
                             src={currentImage}
                             alt={steps[currentStep].title}
-                            initial={{ opacity: 0, scale: 1.1 }}
+                            initial={{ opacity: 0, scale: 1.05 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0 }}
-                            transition={{ duration: 0.5 }}
+                            transition={{ duration: 0.2 }}
                             className="w-full h-full object-cover"
                         />
                     </AnimatePresence>
@@ -130,10 +130,10 @@ export function OnboardingTutorial() {
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={currentStep}
-                                initial={{ y: 20, opacity: 0 }}
+                                initial={{ y: 10, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
-                                exit={{ y: -20, opacity: 0 }}
-                                transition={{ duration: 0.3 }}
+                                exit={{ y: -10, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
                             >
                                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-4">
                                     {steps[currentStep].title}
