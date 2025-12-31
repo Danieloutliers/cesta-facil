@@ -15,7 +15,7 @@ const steps: Step[] = [
         title: "Bem-vindo ao Mercado Fácil Guanambi",
         titleNode: <>Bem-vindo ao Mercado Fácil <span className="text-primary font-bold">Guanambi</span></>,
         description: "A maneira mais simples e econômica de montar sua cesta básica personalizada.",
-        image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600",
+        image: "https://vbtyvdotydiwuownbsaf.supabase.co/storage/v1/object/public/banner-images/06e0053rjp65-1767222603358.png",
         bgClass: "bg-emerald-50"
     },
     {
@@ -39,7 +39,7 @@ const steps: Step[] = [
     {
         title: "Pagamento na Entrega",
         description: "Total segurança: pague com dinheiro, PIX ou cartão somente ao receber sua cesta.",
-        image: "https://images.unsplash.com/photo-1556742111-a301076d9d18?auto=format&fit=crop&q=80&w=600",
+        image: "https://vbtyvdotydiwuownbsaf.supabase.co/storage/v1/object/public/banner-images/6dcgm68j4ol-1767224486987.png",
         bgClass: "bg-green-50"
     }
 ];
