@@ -1,19 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
 interface Step {
     title: string;
+    titleNode?: ReactNode;
     description: string;
     image: string;
     bgClass: string;
 }
-
 const steps: Step[] = [
     {
-        title: "Bem-vindo ao Mercado Fácil",
+        title: "Bem-vindo ao Mercado Fácil Guanambi",
+        titleNode: <>Bem-vindo ao Mercado Fácil <span className="text-primary font-bold">Guanambi</span></>,
         description: "A maneira mais simples e econômica de montar sua cesta básica personalizada.",
         image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600",
         bgClass: "bg-emerald-50"
@@ -27,7 +27,7 @@ const steps: Step[] = [
     {
         title: "Monte do Seu Jeito",
         description: "Navegue pelos produtos e adicione apenas o que você realmente precisa.",
-        image: "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&q=80&w=600",
+        image: "https://vbtyvdotydiwuownbsaf.supabase.co/storage/v1/object/public/banner-images/17x4xrm0inhj-1767220776364.webp",
         bgClass: "bg-purple-50"
     },
     {
@@ -43,11 +43,9 @@ const steps: Step[] = [
         bgClass: "bg-green-50"
     }
 ];
-
 export function OnboardingTutorial() {
     const [isOpen, setIsOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
-
     useEffect(() => {
         // Check if tutorial has been seen
         const hasSeenTutorial = localStorage.getItem('has_seen_tutorial_v10');
@@ -57,13 +55,11 @@ export function OnboardingTutorial() {
             document.body.style.overflow = 'hidden';
         }
     }, []);
-
     const handleClose = () => {
         setIsOpen(false);
         localStorage.setItem('has_seen_tutorial_v10', 'true');
         document.body.style.overflow = 'unset';
     };
-
     const handleNext = () => {
         if (currentStep < steps.length - 1) {
             setCurrentStep(prev => prev + 1);
@@ -71,18 +67,13 @@ export function OnboardingTutorial() {
             handleClose();
         }
     };
-
     if (!isOpen) return null;
-
     const currentImage = steps[currentStep].image;
-
     return (
         <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center p-0 md:p-6 overflow-hidden">
             {/* Background Subtle Pattern */}
             <div className="absolute inset-0 bg-secondary/30 pointer-events-none" />
-
             <div className="w-full max-w-lg mx-auto flex flex-col h-full bg-card md:rounded-3xl md:h-auto md:min-h-[600px] md:shadow-2xl relative overflow-hidden text-foreground">
-
                 {/* Skip Button */}
                 <button
                     onClick={handleClose}
@@ -91,7 +82,6 @@ export function OnboardingTutorial() {
                     <span className="sr-only">Pular tutorial</span>
                     <span className="text-xs font-semibold px-2">Pular</span>
                 </button>
-
                 {/* Image Area */}
                 <div className="flex-1 relative max-h-[50%] md:max-h-[300px] overflow-hidden">
                     <AnimatePresence mode="wait">
@@ -99,20 +89,18 @@ export function OnboardingTutorial() {
                             key={currentStep}
                             src={currentImage}
                             alt={steps[currentStep].title}
-                            initial={{ opacity: 0, scale: 1.05 }}
+                            initial={{ opacity: 0, scale: 1.1 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
+                            transition={{ duration: 0.5 }}
                             className="w-full h-full object-cover"
                         />
                     </AnimatePresence>
                     {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/10 pointer-events-none" />
                 </div>
-
                 {/* Content Area */}
                 <div className="flex-1 flex flex-col items-center justify-between p-8 text-center relative z-10">
-
                     <div className="space-y-6 pt-4">
                         {/* Progress Circles */}
                         <div className="flex justify-center gap-3 mb-6">
@@ -126,17 +114,16 @@ export function OnboardingTutorial() {
                                 />
                             ))}
                         </div>
-
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={currentStep}
-                                initial={{ y: 10, opacity: 0 }}
+                                initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
-                                exit={{ y: -10, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
+                                exit={{ y: -20, opacity: 0 }}
+                                transition={{ duration: 0.3 }}
                             >
                                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-4">
-                                    {steps[currentStep].title}
+                                    {steps[currentStep].titleNode || steps[currentStep].title}
                                 </h2>
                                 <p className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-xs mx-auto">
                                     {steps[currentStep].description}
@@ -144,7 +131,6 @@ export function OnboardingTutorial() {
                             </motion.div>
                         </AnimatePresence>
                     </div>
-
                     {/* Action Button */}
                     <div className="w-full mt-8">
                         <Button
@@ -163,9 +149,7 @@ export function OnboardingTutorial() {
                             )}
                         </Button>
                     </div>
-
                 </div>
-
             </div>
         </div>
     );
