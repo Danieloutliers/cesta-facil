@@ -12,6 +12,8 @@ interface Customer {
     phone: string;
     name?: string;
     email?: string;
+    avatar_url?: string;
+    photo_url?: string;
     created_at: string;
 }
 
@@ -22,6 +24,7 @@ interface Order {
     total: number;
     status: string;
     items: any[];
+    address?: any;
 }
 
 export default function CustomerDetails() {
@@ -29,6 +32,7 @@ export default function CustomerDetails() {
     const navigate = useNavigate();
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
+    const [lastAddress, setLastAddress] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -59,6 +63,14 @@ export default function CustomerDetails() {
             if (ordersError) throw ordersError;
             setOrders(userOrders || []);
 
+            // Get address from last order that has one
+            if (userOrders && userOrders.length > 0) {
+                const lastOrderWithAddress = userOrders.find((o: any) => o.address);
+                if (lastOrderWithAddress) {
+                    setLastAddress(lastOrderWithAddress.address);
+                }
+            }
+
         } catch (error) {
             console.error('Error fetching customer details:', error);
         } finally {
@@ -85,15 +97,43 @@ export default function CustomerDetails() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => navigate('/admin/customers')}>
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                <Button variant="ghost" size="icon" onClick={() => navigate('/admin/customers')} className="self-start sm:self-auto">
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">{customer.name || 'Cliente sem nome'}</h2>
-                    <p className="text-muted-foreground flex items-center gap-2">
-                        <Phone className="h-3 w-3" /> {customer.phone}
-                    </p>
+
+                <div className="flex flex-col sm:flex-row items-center gap-6 w-full">
+                    {/* Avatar / Photo */}
+                    <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 overflow-hidden shadow-sm shrink-0">
+                        {customer.avatar_url || customer.photo_url ? (
+                            <img
+                                src={customer.avatar_url || customer.photo_url}
+                                alt={customer.name}
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            <User className="h-10 w-10 text-gray-400" />
+                        )}
+                    </div>
+
+                    <div className="text-center sm:text-left flex-1 space-y-2">
+                        <div>
+                            <h2 className="text-3xl font-bold tracking-tight">{customer.name || 'Cliente sem nome'}</h2>
+                            <p className="text-muted-foreground flex items-center justify-center sm:justify-start gap-2">
+                                <Phone className="h-4 w-4" /> {customer.phone}
+                            </p>
+                        </div>
+
+                        {/* Address Badge - If available */}
+                        {lastAddress && (
+                            <div className="flex items-center justify-center sm:justify-start gap-2 text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full w-fit mx-auto sm:mx-0">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span>
+                                    {lastAddress.street}, {lastAddress.number} - {lastAddress.neighborhood}, {lastAddress.city}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
