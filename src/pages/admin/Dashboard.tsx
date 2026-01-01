@@ -134,14 +134,14 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             <div>
-                <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-                <p className="text-muted-foreground">Visão geral do seu negócio</p>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
+                <p className="text-sm sm:text-base text-muted-foreground">Visão geral do seu negócio</p>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total de Pedidos</CardTitle>
@@ -230,7 +230,7 @@ const Dashboard = () => {
             </div>
 
             {/* Charts */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
                 <SalesChart data={salesData} title="Vendas Diárias" description="Últimos 30 dias" />
                 <TopProductsChart data={topProducts} title="Top 5 Produtos" description="Mais vendidos" />
             </div>
@@ -239,3 +239,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

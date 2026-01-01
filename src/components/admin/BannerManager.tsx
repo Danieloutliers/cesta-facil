@@ -76,14 +76,14 @@ export function BannerManager() {
         <>
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
                         <div>
                             <CardTitle>Gerenciar Banners</CardTitle>
                             <CardDescription>
                                 Configure os banners exibidos no carrossel da página inicial
                             </CardDescription>
                         </div>
-                        <Button onClick={handleAdd}>
+                        <Button onClick={handleAdd} className="w-full sm:w-auto">
                             <Plus className="h-4 w-4 mr-2" />
                             Adicionar Banner
                         </Button>
@@ -99,17 +99,31 @@ export function BannerManager() {
                             banners.map((banner) => (
                                 <div
                                     key={banner.id}
-                                    className={`border rounded-lg p-4 transition-opacity ${!banner.active ? 'opacity-50' : ''
+                                    className={`border rounded-lg p-3 sm:p-4 transition-opacity ${!banner.active ? 'opacity-50' : ''
                                         }`}
                                 >
-                                    <div className="flex gap-4">
-                                        {/* Drag Handle (visual only for now) */}
-                                        <div className="flex items-center text-muted-foreground cursor-move">
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        {/* Mobile: Header with Drag Handle & Actions */}
+                                        <div className="flex items-center justify-between sm:hidden">
+                                            <div className="flex items-center text-muted-foreground">
+                                                <GripVertical className="h-5 w-5" />
+                                                <span className="ml-2 text-sm font-medium">Ordem: {banner.display_order}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={banner.active}
+                                                    onCheckedChange={() => handleToggleActive(banner.id, banner.active)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Desktop: Drag Handle */}
+                                        <div className="hidden sm:flex items-center text-muted-foreground cursor-move">
                                             <GripVertical className="h-5 w-5" />
                                         </div>
 
                                         {/* Banner Preview Image */}
-                                        <div className="w-32 h-20 flex-shrink-0">
+                                        <div className="w-full h-32 sm:w-32 sm:h-20 flex-shrink-0">
                                             <img
                                                 src={banner.image_url}
                                                 alt={banner.title}
@@ -119,14 +133,14 @@ export function BannerManager() {
 
                                         {/* Banner Info */}
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="flex-1">
+                                            <div className="flex flex-col sm:flex-row items-start justify-between gap-2">
+                                                <div className="flex-1 w-full">
                                                     <h3 className="font-semibold text-lg">{banner.title}</h3>
                                                     <p className="text-sm text-muted-foreground line-clamp-2">
                                                         {banner.description}
                                                     </p>
                                                     <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 text-xs text-muted-foreground">
-                                                        <span>Ordem: {banner.display_order}</span>
+                                                        <span className="hidden sm:inline">Ordem: {banner.display_order}</span>
                                                         <span>Ícone: {banner.icon}</span>
                                                         {banner.button_text && <span>Botão: {banner.button_text}</span>}
                                                         {banner.link && (
@@ -137,8 +151,8 @@ export function BannerManager() {
                                                     </div>
                                                 </div>
 
-                                                {/* Actions */}
-                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                {/* Desktop Actions */}
+                                                <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm text-muted-foreground">Ativo</span>
                                                         <Switch
@@ -162,6 +176,31 @@ export function BannerManager() {
                                                         }}
                                                     >
                                                         <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+
+                                                {/* Mobile Actions Buttons */}
+                                                <div className="flex sm:hidden w-full gap-2 mt-3 pt-3 border-t">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        onClick={() => handleEdit(banner)}
+                                                    >
+                                                        <Edit className="h-4 w-4 mr-2" />
+                                                        Editar
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                                                        onClick={() => {
+                                                            setBannerToDelete(banner.id);
+                                                            setDeleteDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 mr-2" />
+                                                        Excluir
                                                     </Button>
                                                 </div>
                                             </div>

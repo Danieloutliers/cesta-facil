@@ -21,6 +21,7 @@ const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const WhatsappConnect = lazy(() => import('./pages/admin/Whatsapp'));
 const Customers = lazy(() => import("./pages/admin/Customers"));
+const CustomerDetails = lazy(() => import("./pages/admin/CustomerDetails"));
 const BudgetOptions = lazy(() => import("./pages/admin/BudgetOptions"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Categories = lazy(() => import("./pages/admin/Categories"));
@@ -59,6 +60,7 @@ const App = () => (
                     <Route path="budgets" element={<BudgetOptions />} />
                     <Route path="banners" element={<Banners />} />
                     <Route path="customers" element={<Customers />} />
+                    <Route path="customers/:id" element={<CustomerDetails />} />
                     <Route path="whatsapp" element={<WhatsappConnect />} />
                     <Route path="reports" element={<Reports />} />
                     <Route path="settings" element={<Settings />} />

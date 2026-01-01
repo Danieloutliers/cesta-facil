@@ -13,11 +13,12 @@ import {
     ChevronRight,
     Store,
     DollarSign,
-    Image
+    Image,
+    X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface NavItem {
     title: string;
@@ -28,6 +29,11 @@ interface NavItem {
 interface NavGroup {
     label: string;
     items: NavItem[];
+}
+
+interface AdminSidebarProps {
+    mobileOpen?: boolean;
+    onMobileClose?: () => void;
 }
 
 const navGroups: NavGroup[] = [
@@ -103,27 +109,43 @@ const navGroups: NavGroup[] = [
     }
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebarProps) {
     const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
 
-    return (
-        <div
-            className={cn(
-                'relative flex flex-col border-r bg-background transition-all duration-300',
-                collapsed ? 'w-16' : 'w-64'
-            )}
-        >
+    // Close mobile menu when route changes
+    useEffect(() => {
+        if (mobileOpen && onMobileClose) {
+            onMobileClose();
+        }
+    }, [location.pathname]);
+
+    // Prevent body scroll when mobile sidebar is open
+    useEffect(() => {
+        if (mobileOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [mobileOpen]);
+
+    const SidebarContent = () => (
+        <>
             {/* Header */}
             <div className="flex h-16 items-center justify-between border-b px-4">
-                {!collapsed && (
+                {(!collapsed || mobileOpen) && (
                     <h2 className="text-lg font-semibold">Admin Panel</h2>
                 )}
+
+                {/* Desktop: Collapse button */}
                 <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setCollapsed(!collapsed)}
-                    className={cn(!collapsed && 'ml-auto')}
+                    className={cn('hidden md:flex', !collapsed && 'ml-auto')}
                 >
                     {collapsed ? (
                         <ChevronRight className="h-4 w-4" />
@@ -131,13 +153,23 @@ export function AdminSidebar() {
                         <ChevronLeft className="h-4 w-4" />
                     )}
                 </Button>
+
+                {/* Mobile: Close button */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onMobileClose}
+                    className="md:hidden ml-auto"
+                >
+                    <X className="h-5 w-5" />
+                </Button>
             </div>
 
             {/* Navigation */}
             <nav className="flex-1 space-y-4 px-2 py-4 overflow-y-auto">
                 {navGroups.map((group, groupIndex) => (
                     <div key={groupIndex} className="space-y-1">
-                        {!collapsed && (
+                        {(!collapsed || mobileOpen) && (
                             <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
                                 {group.label}
                             </h3>
@@ -157,17 +189,17 @@ export function AdminSidebar() {
                                             isActive
                                                 ? 'bg-primary/10 text-primary shadow-sm'
                                                 : 'text-muted-foreground',
-                                            collapsed && 'justify-center px-2'
+                                            collapsed && !mobileOpen && 'justify-center px-2'
                                         )}
-                                        title={collapsed ? item.title : undefined}
+                                        title={collapsed && !mobileOpen ? item.title : undefined}
                                     >
                                         <Icon className="h-5 w-5 flex-shrink-0" />
-                                        {!collapsed && <span>{item.title}</span>}
+                                        {(!collapsed || mobileOpen) && <span>{item.title}</span>}
                                     </Link>
                                 );
                             })}
                         </div>
-                        {groupIndex < navGroups.length - 1 && collapsed && (
+                        {groupIndex < navGroups.length - 1 && collapsed && !mobileOpen && (
                             <div className="my-2 border-t border-border/50" />
                         )}
                     </div>
@@ -176,11 +208,43 @@ export function AdminSidebar() {
 
             {/* Footer */}
             <div className="border-t p-4">
-                <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
-                    {!collapsed && <span className="text-xs text-muted-foreground">v1.0.0</span>}
+                <div className={cn('flex items-center', (collapsed && !mobileOpen) ? 'justify-center' : 'justify-between')}>
+                    {(!collapsed || mobileOpen) && <span className="text-xs text-muted-foreground">v1.0.0</span>}
                     <ThemeToggle />
                 </div>
             </div>
-        </div>
+        </>
+    );
+
+    return (
+        <>
+            {/* Mobile Overlay */}
+            {mobileOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    onClick={onMobileClose}
+                />
+            )}
+
+            {/* Desktop Sidebar */}
+            <div
+                className={cn(
+                    'hidden md:flex relative flex-col border-r bg-background transition-all duration-300',
+                    collapsed ? 'w-16' : 'w-64'
+                )}
+            >
+                <SidebarContent />
+            </div>
+
+            {/* Mobile Sidebar (Drawer) */}
+            <div
+                className={cn(
+                    'fixed top-0 left-0 bottom-0 z-50 w-64 bg-background border-r transition-transform duration-300 md:hidden flex flex-col',
+                    mobileOpen ? 'translate-x-0' : '-translate-x-full'
+                )}
+            >
+                <SidebarContent />
+            </div>
+        </>
     );
 }

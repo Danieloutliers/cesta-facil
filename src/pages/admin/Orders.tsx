@@ -222,6 +222,7 @@ export default function Orders() {
     const [loading, setLoading] = useState(true);
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
+    const [mobileStatusFilter, setMobileStatusFilter] = useState<Order['status'] | 'todos'>('todos');
     const { toast } = useToast();
 
     const sensors = useSensors(
@@ -391,6 +392,11 @@ export default function Orders() {
 
     const activeOrder = activeDragId ? orders.find(o => o.id === activeDragId) : null;
 
+    // Mobile filtered orders
+    const mobileFilteredOrders = mobileStatusFilter === 'todos'
+        ? orders
+        : orders.filter(o => o.status === mobileStatusFilter);
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -400,64 +406,243 @@ export default function Orders() {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] space-y-6">
+        <div className="flex flex-col h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
             {/* Header & Stats */}
-            <div className="flex-none space-y-4">
+            <div className="flex-none space-y-3 sm:space-y-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Painel de Pedidos</h1>
-                    <p className="text-muted-foreground">Gerencie o fluxo de pedidos da loja em tempo real</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Painel de Pedidos</h1>
+                    <p className="text-sm sm:text-base text-muted-foreground">Gerencie o fluxo de pedidos da loja em tempo real</p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-4">
+                {/* Stats Cards - 2 columns on mobile, 4 on desktop */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
                     <Card className="bg-yellow-50/50 border-yellow-100">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-yellow-800">Processando</CardTitle>
-                            <Clock className="h-4 w-4 text-yellow-600" />
+                            <CardTitle className="text-xs sm:text-sm font-medium text-yellow-800">Processando</CardTitle>
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-yellow-900">{ordersByStatus.processando.length}</div>
-                            <p className="text-xs text-yellow-700">Aguardando separação</p>
+                            <div className="text-xl sm:text-2xl font-bold text-yellow-900">{ordersByStatus.processando.length}</div>
+                            <p className="text-[10px] sm:text-xs text-yellow-700">Aguardando separação</p>
                         </CardContent>
                     </Card>
 
                     <Card className="bg-blue-50/50 border-blue-100">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-blue-800">Separando</CardTitle>
-                            <Package className="h-4 w-4 text-blue-600" />
+                            <CardTitle className="text-xs sm:text-sm font-medium text-blue-800">Separando</CardTitle>
+                            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-blue-900">{ordersByStatus.separando.length}</div>
-                            <p className="text-xs text-blue-700">Em preparação</p>
+                            <div className="text-xl sm:text-2xl font-bold text-blue-900">{ordersByStatus.separando.length}</div>
+                            <p className="text-[10px] sm:text-xs text-blue-700">Em preparação</p>
                         </CardContent>
                     </Card>
 
                     <Card className="bg-purple-50/50 border-purple-100">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-purple-800">Em Rota</CardTitle>
-                            <MapPin className="h-4 w-4 text-purple-600" />
+                            <CardTitle className="text-xs sm:text-sm font-medium text-purple-800">Em Rota</CardTitle>
+                            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-purple-900">{ordersByStatus.em_rota.length}</div>
-                            <p className="text-xs text-purple-700">Saiu para entrega</p>
+                            <div className="text-xl sm:text-2xl font-bold text-purple-900">{ordersByStatus.em_rota.length}</div>
+                            <p className="text-[10px] sm:text-xs text-purple-700">Saiu para entrega</p>
                         </CardContent>
                     </Card>
 
                     <Card className="bg-green-50/50 border-green-100">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-green-800">Entregues</CardTitle>
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <CardTitle className="text-xs sm:text-sm font-medium text-green-800">Entregues</CardTitle>
+                            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-900">{ordersByStatus.entregue.length}</div>
-                            <p className="text-xs text-green-700">Finalizados hoje</p>
+                            <div className="text-xl sm:text-2xl font-bold text-green-900">{ordersByStatus.entregue.length}</div>
+                            <p className="text-[10px] sm:text-xs text-green-700">Finalizados hoje</p>
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Mobile Status Filter Tabs */}
+                <div className="md:hidden flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                    <Button
+                        variant={mobileStatusFilter === 'todos' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setMobileStatusFilter('todos')}
+                        className="flex-shrink-0 h-9"
+                    >
+                        Todos ({orders.length})
+                    </Button>
+                    <Button
+                        variant={mobileStatusFilter === 'processando' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setMobileStatusFilter('processando')}
+                        className="flex-shrink-0 h-9"
+                    >
+                        <Clock className="h-3 w-3 mr-1" />
+                        Processando
+                    </Button>
+                    <Button
+                        variant={mobileStatusFilter === 'separando' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setMobileStatusFilter('separando')}
+                        className="flex-shrink-0 h-9"
+                    >
+                        <Package className="h-3 w-3 mr-1" />
+                        Separando
+                    </Button>
+                    <Button
+                        variant={mobileStatusFilter === 'em_rota' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setMobileStatusFilter('em_rota')}
+                        className="flex-shrink-0 h-9"
+                    >
+                        <MapPin className="h-3 w-3 mr-1" />
+                        Em Rota
+                    </Button>
+                    <Button
+                        variant={mobileStatusFilter === 'entregue' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setMobileStatusFilter('entregue')}
+                        className="flex-shrink-0 h-9"
+                    >
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Entregues
+                    </Button>
+                </div>
             </div>
 
-            {/* Kanban Board */}
+            {/* Mobile List View */}
+            <div className="md:hidden flex-1 overflow-y-auto space-y-3">
+                {mobileFilteredOrders.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>Nenhum pedido encontrado</p>
+                    </div>
+                ) : (
+                    mobileFilteredOrders.map((order) => {
+                        const config = statusConfig[order.status as keyof typeof statusConfig];
+                        const StatusIcon = config.icon;
+
+                        return (
+                            <Card key={order.id} className="bg-white shadow-sm border-gray-100">
+                                <CardHeader className="p-4 pb-2 space-y-2">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className={cn("font-mono text-xs", config.color)}>
+                                                <StatusIcon className="h-3 w-3 mr-1" />
+                                                {config.label}
+                                            </Badge>
+                                        </div>
+                                        <span className="text-base font-bold text-green-600">
+                                            R$ {order.total.toFixed(2).replace('.', ',')}
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                            <User className="h-3 w-3 text-muted-foreground" />
+                                            <span>{order.user.name || 'Cliente sem nome'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <MapPin className="h-3 w-3" />
+                                            <span className="truncate">
+                                                {order.address.neighborhood}, {order.address.city}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+
+                                <CardContent className="p-4 pt-2">
+                                    <div className="space-y-2">
+                                        {/* Status Change Select */}
+                                        <Select
+                                            value={order.status}
+                                            onValueChange={(value) => updateOrderStatus(order.id, value as Order['status'])}
+                                        >
+                                            <SelectTrigger className="w-full h-10">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="processando">
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="h-4 w-4" />
+                                                        Processando
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="separando">
+                                                    <div className="flex items-center gap-2">
+                                                        <Package className="h-4 w-4" />
+                                                        Separando
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="em_rota">
+                                                    <div className="flex items-center gap-2">
+                                                        <MapPin className="h-4 w-4" />
+                                                        Em Rota
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="entregue">
+                                                    <div className="flex items-center gap-2">
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                        Entregue
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full h-9 text-xs"
+                                            onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                                        >
+                                            {expandedOrder === order.id ? 'Ocultar detalhes' : 'Ver detalhes'}
+                                        </Button>
+
+                                        {/* Expanded Details */}
+                                        {expandedOrder === order.id && (
+                                            <div className="pt-2 text-xs space-y-3 border-t">
+                                                {/* Items List */}
+                                                <div className="space-y-1 bg-gray-50 p-3 rounded">
+                                                    <p className="font-semibold text-gray-700 mb-2">Itens do Pedido:</p>
+                                                    {order.items.map((item: CartItem, idx: number) => (
+                                                        <div key={idx} className="flex justify-between text-gray-600">
+                                                            <span>{item.quantity}x {item.name}</span>
+                                                            <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Full Address */}
+                                                <div className="text-gray-600 bg-gray-50 p-3 rounded">
+                                                    <p className="font-semibold text-gray-700 mb-1">Endereço:</p>
+                                                    <p>{order.address.street}, {order.address.number}</p>
+                                                    {order.address.complement && <p>{order.address.complement}</p>}
+                                                    <p>{order.address.neighborhood}, {order.address.city}</p>
+                                                </div>
+
+                                                {/* WhatsApp Button */}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full h-10 gap-2 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                                                    onClick={() => window.open(`https://wa.me/55${order.user.phone}`, '_blank')}
+                                                >
+                                                    <MessageCircle className="h-4 w-4" />
+                                                    Contatar Cliente
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Desktop Kanban Board */}
             <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
+                <div className="hidden md:block flex-1 overflow-x-auto overflow-y-hidden pb-4">
                     <div className="flex h-full gap-6 min-w-[1000px]">
                         {Object.entries(ordersByStatus).map(([status, statusOrders]) => {
                             const config = statusConfig[status as keyof typeof statusConfig];

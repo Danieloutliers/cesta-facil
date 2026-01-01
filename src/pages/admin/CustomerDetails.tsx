@@ -1,0 +1,176 @@
+
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
+import { ArrowLeft, User, Phone, MapPin, ShoppingBag, Calendar, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+interface Customer {
+    id: string;
+    phone: string;
+    name?: string;
+    email?: string;
+    created_at: string;
+}
+
+interface Order {
+    id: string;
+    order_number: string;
+    created_at: string;
+    total: number;
+    status: string;
+    items: any[];
+}
+
+export default function CustomerDetails() {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [customer, setCustomer] = useState<Customer | null>(null);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (id) {
+            fetchCustomerDetails();
+        }
+    }, [id]);
+
+    const fetchCustomerDetails = async () => {
+        try {
+            // Fetch customer profile
+            const { data: user, error: userError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (userError) throw userError;
+            setCustomer(user);
+
+            // Fetch customer orders
+            const { data: userOrders, error: ordersError } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('user_id', id)
+                .order('created_at', { ascending: false });
+
+            if (ordersError) throw ordersError;
+            setOrders(userOrders || []);
+
+        } catch (error) {
+            console.error('Error fetching customer details:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return <div className="p-8 text-center">Carregando detalhes do cliente...</div>;
+    }
+
+    if (!customer) {
+        return (
+            <div className="p-8 text-center">
+                <p className="mb-4">Cliente não encontrado.</p>
+                <Button onClick={() => navigate('/admin/customers')}>Voltar para Clientes</Button>
+            </div>
+        );
+    }
+
+    // Calculate stats
+    const totalSpent = orders.reduce((acc, order) => acc + (Number(order.total) || 0), 0);
+    const averageOrder = orders.length > 0 ? totalSpent / orders.length : 0;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => navigate('/admin/customers')}>
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">{customer.name || 'Cliente sem nome'}</h2>
+                    <p className="text-muted-foreground flex items-center gap-2">
+                        <Phone className="h-3 w-3" /> {customer.phone}
+                    </p>
+                </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Gasto</CardTitle>
+                        <User className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">R$ {totalSpent.toFixed(2).replace('.', ',')}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos Realizados</CardTitle>
+                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{orders.length}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">R$ {averageOrder.toFixed(2).replace('.', ',')}</div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Histórico de Pedidos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        {orders.length === 0 ? (
+                            <p className="text-center text-muted-foreground py-4">Nenhum pedido realizado.</p>
+                        ) : (
+                            orders.map((order) => (
+                                <div key={order.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-4">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold">Pedido #{order.order_number?.slice(-6) || order.id.slice(0, 8)}</span>
+                                            <Badge variant={
+                                                order.status === 'entregue' ? 'default' :
+                                                    order.status === 'cancelado' ? 'destructive' : 'secondary'
+                                            }>
+                                                {order.status}
+                                            </Badge>
+                                        </div>
+                                        <div className="text-sm text-muted-foreground flex items-center gap-4">
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="h-3 w-3" />
+                                                {new Date(order.created_at).toLocaleDateString()}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {new Date(order.created_at).toLocaleTimeString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <p className="font-bold">R$ {Number(order.total).toFixed(2).replace('.', ',')}</p>
+                                        <Button variant="outline" size="sm" onClick={() => navigate('/admin/orders')}>
+                                            Ver no Painel
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}

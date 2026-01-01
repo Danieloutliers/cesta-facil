@@ -258,7 +258,7 @@ export function BannerFormDialog({ open, onOpenChange, banner, onSuccess }: Bann
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {!!formData.gradient && formData.gradient !== 'none' && (
                             <div className="space-y-2">
                                 <Label htmlFor="gradient">Cor do Gradiente</Label>
@@ -300,7 +300,7 @@ export function BannerFormDialog({ open, onOpenChange, banner, onSuccess }: Bann
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="button_text">Texto do Botão</Label>
                             <Input
