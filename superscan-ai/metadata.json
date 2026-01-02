@@ -1,0 +1,7 @@
+{
+  "name": "SuperScan AI",
+  "description": "Aplicativo de gestão para supermercados que utiliza IA para reconhecer produtos, extrair preços e tratar imagens automaticamente para o e-commerce.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
