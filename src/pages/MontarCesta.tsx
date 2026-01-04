@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
@@ -101,21 +101,67 @@ const MontarCesta = () => {
           </div>
 
           {/* Categories Scroll Area (Horizontal Snap) */}
-          <div className="flex overflow-x-auto pb-2 gap-2 snap-x hide-scrollbar">
-            {categories.map((category) => (
+          {/* Categories Scroll Area (Horizontal Snap) */}
+          <div className="relative group/categories">
+            {/* Left Scroll Gradient & Button */}
+            <div className="absolute left-0 top-0 bottom-2 w-12 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none md:hidden" />
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex">
               <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? 'default' : 'secondary'}
-                onClick={() => setSelectedCategory(category.id)}
-                className={cn(
-                  "snap-start shrink-0 rounded-full h-8 px-3 text-xs font-medium",
-                  selectedCategory === category.id && "shadow-md"
-                )}
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 rounded-full bg-background/80 hover:bg-background shadow-sm border border-border opacity-0 group-hover/categories:opacity-100 transition-opacity"
+                onClick={() => {
+                  const container = document.getElementById('categories-container');
+                  if (container) container.scrollBy({ left: -200, behavior: 'smooth' });
+                }}
               >
-                <span className="mr-1.5 text-sm">{category.icon}</span>
-                {category.label}
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            ))}
+            </div>
+
+            {/* Scroll Container */}
+            <div
+              id="categories-container"
+              className="flex overflow-x-auto pb-2 gap-2 snap-x hide-scrollbar px-1"
+            >
+              {categories.map((category) => (
+                <Button
+                  key={category.id}
+                  variant={selectedCategory === category.id ? 'default' : 'secondary'}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={cn(
+                    "snap-start shrink-0 rounded-full h-8 px-3 text-xs font-medium transition-all",
+                    selectedCategory === category.id
+                      ? "shadow-md scale-105"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <span className="mr-1.5 text-sm">{category.icon}</span>
+                  {category.label}
+                </Button>
+              ))}
+              {/* Padding-right spacer to ensure last item is not cut off by gradient */}
+              <div className="w-8 shrink-0 md:hidden" />
+            </div>
+
+            {/* Right Scroll Gradient & Button */}
+            <div className="absolute right-0 top-0 bottom-2 w-16 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none flex items-center justify-end pr-2 md:hidden">
+              <ChevronRight className="h-5 w-5 text-muted-foreground animate-pulse" />
+            </div>
+
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 rounded-full bg-background/80 hover:bg-background shadow-sm border border-border opacity-0 group-hover/categories:opacity-100 transition-opacity"
+                onClick={() => {
+                  const container = document.getElementById('categories-container');
+                  if (container) container.scrollBy({ left: 200, behavior: 'smooth' });
+                }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 

@@ -16,6 +16,7 @@ export interface ScannedData {
   price: number;
   category: string;
   description: string;
+  unit?: string; // Adicionado para compatibilidade com DB
 }
 
 export enum AppView {

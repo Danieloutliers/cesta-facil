@@ -19,5 +19,5 @@ export const supabase = createClient(
     supabaseAnonKey || FALLBACK_KEY
 );
 
-// Storage bucket name
-export const PRODUCT_BUCKET = 'products';
+// Storage bucket name (mesmo do admin)
+export const PRODUCT_BUCKET = 'product-images';

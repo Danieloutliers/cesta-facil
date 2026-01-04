@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +17,36 @@ interface ProductFormDialogProps {
 export function ProductFormDialog({ open, onOpenChange, product, onSave }: ProductFormDialogProps) {
     const { categories } = useCategories();
     const [formData, setFormData] = useState<Omit<Product, 'id'>>({
-        name: product?.name || '',
-        price: product?.price || 0,
-        image: product?.image || '',
-        category: product?.category || 'alimentos',
-        unit: product?.unit || '',
+        name: '',
+        price: 0,
+        image: '',
+        category: 'alimentos',
+        unit: '',
     });
     const [loading, setLoading] = useState(false);
+
+    // Update form data when product changes or dialog opens
+    useEffect(() => {
+        if (open) {
+            if (product) {
+                setFormData({
+                    name: product.name,
+                    price: product.price,
+                    image: product.image,
+                    category: product.category,
+                    unit: product.unit,
+                });
+            } else {
+                setFormData({
+                    name: '',
+                    price: 0,
+                    image: '',
+                    category: 'alimentos',
+                    unit: '',
+                });
+            }
+        }
+    }, [product, open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
