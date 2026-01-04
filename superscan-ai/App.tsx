@@ -26,6 +26,8 @@ export default function App() {
   const [showStatistics, setShowStatistics] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [subcategories, setSubcategories] = useState<{ id: string, label: string, category_id: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string, label: string }[]>([]);
 
   // States for animation simulation
   const [processingStep, setProcessingStep] = useState<string>('');
@@ -33,6 +35,13 @@ export default function App() {
   useEffect(() => {
     fetchProducts();
     updatePendingCount();
+
+    // Fetch Categories
+    const fetchCats = async () => {
+      const { data } = await supabase.from('categories').select('*');
+      if (data) setCategories(data);
+    };
+    fetchCats();
 
     // Monitor online/offline status
     const handleOnline = () => {
@@ -67,6 +76,17 @@ export default function App() {
         console.log('Produtos carregados:', data?.length, data);
         setProducts(data || []);
       }
+
+      // Fetch Subcategories
+      const { data: subData, error: subError } = await supabase
+        .from('subcategories')
+        .select('*')
+        .order('label');
+
+      if (!subError && subData) {
+        setSubcategories(subData);
+      }
+
     } catch (err) {
       console.error('Fetch error:', err);
     }
@@ -109,7 +129,7 @@ export default function App() {
     setProcessingStep('Identificando produto...');
 
     // Real Gemini Call
-    const data = await analyzeProductImage(currentImage);
+    const data = await analyzeProductImage(currentImage, categories, subcategories);
 
     setProcessingStep('Melhorando qualidade da imagem...');
     await new Promise(r => setTimeout(r, 1000)); // Fake processing time for "image enhancement"
@@ -277,6 +297,7 @@ export default function App() {
         category: categoryToSave,
         image: imageUrl,
         unit: scanResult.unit || 'un',
+        subcategory_id: scanResult.subcategory_id,
       };
 
       let error;
@@ -798,7 +819,7 @@ export default function App() {
                 <label className="text-xs font-bold text-gray-400 uppercase">Categoria</label>
                 <select
                   value={scanResult?.category || 'alimentos'}
-                  onChange={(e) => setScanResult(prev => prev ? { ...prev, category: e.target.value } : null)}
+                  onChange={(e) => setScanResult(prev => prev ? { ...prev, category: e.target.value, subcategory_id: undefined } : null)}
                   className="w-full text-lg text-gray-700 border border-gray-300 rounded-lg px-3 py-2 focus:border-green-500 focus:outline-none bg-white"
                 >
                   <option value="alimentos">🍎 Alimentos</option>
@@ -807,6 +828,26 @@ export default function App() {
                   <option value="higiene">🧼 Higiene</option>
                 </select>
               </div>
+            </div>
+
+            {/* Subcategories */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase">Subcategoria</label>
+              <select
+                value={scanResult?.subcategory_id || ''}
+                onChange={(e) => setScanResult(prev => prev ? { ...prev, subcategory_id: e.target.value } : null)}
+                className="w-full text-lg text-gray-700 border-b border-dashed border-gray-300 focus:border-green-500 focus:outline-none py-1 bg-transparent"
+                disabled={!scanResult?.category}
+              >
+                <option value="">Nenhuma</option>
+                {subcategories
+                  .filter(sub => sub.category_id === (scanResult?.category || 'alimentos'))
+                  .map(sub => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.label}
+                    </option>
+                  ))}
+              </select>
             </div>
 
             <div className="space-y-1 pt-2">
@@ -851,7 +892,7 @@ export default function App() {
           )}
         </button>
       </div>
-    </div>
+    </div >
   );
 
   return (

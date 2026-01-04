@@ -9,12 +9,20 @@ export interface Product {
   status?: 'pending' | 'synced'; // Optional, for local UI state
   created_at?: string;
   isEnhanced?: boolean; // UI only
+  subcategory_id?: string;
+}
+
+export interface SubCategory {
+  id: string;
+  label: string;
+  category_id: string;
 }
 
 export interface ScannedData {
   name: string;
   price: number;
   category: string;
+  subcategory_id?: string;
   description: string;
   unit?: string; // Adicionado para compatibilidade com DB
 }

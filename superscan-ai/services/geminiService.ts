@@ -1,7 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ScannedData } from "../types";
 
-export const analyzeProductImage = async (base64Image: string): Promise<ScannedData> => {
+export const analyzeProductImage = async (
+  base64Image: string,
+  availableCategories?: { id: string, label: string }[],
+  availableSubcategories?: { id: string, label: string, category_id: string }[]
+): Promise<ScannedData> => {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey.includes('PLACEHOLDER')) {
@@ -18,6 +22,10 @@ export const analyzeProductImage = async (base64Image: string): Promise<ScannedD
   const ai = new GoogleGenAI({ apiKey });
   const cleanBase64 = base64Image.split(',')[1] || base64Image;
 
+  // Build context strings
+  const catsStr = availableCategories?.map(c => `${c.id} (${c.label})`).join(', ') || "alimentos, bebidas, limpeza, higiene";
+  const subsStr = availableSubcategories?.map(s => `ID: ${s.id}, Nome: ${s.label}, Categoria Pai: ${s.category_id}`).join('\n') || "";
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -30,16 +38,26 @@ export const analyzeProductImage = async (base64Image: string): Promise<ScannedD
             }
           },
           {
-            text: `Você é um assistente de IA para um supermercado. Analise esta imagem do produto e retorne APENAS um JSON válido com:
+            text: `Você é um assistente de IA para um supermercado. Analise esta imagem do produto e retorne APENAS um JSON válido.
+            
+            Categorias Disponíveis: ${catsStr}
+            Subcategorias Disponíveis:
+            ${subsStr}
+
+            Escolha a categoria que melhor se adapta (use o ID/Slug).
+            E escolha a subcategoria mais específica possível da lista acima, se houver uma correspondente (use o ID). Se não houver, deixe null.
+
+            JSON Schema:
 {
   "name": "Nome completo do produto (Marca + Tipo + Peso/Volume)",
   "price": preço em número (ex: 9.99),
-  "category": "uma das opções: alimentos, bebidas, limpeza ou higiene",
+  "category": "o ID da categoria escolhida",
+  "subcategory_id": "o ID da subcategoria escolhida ou null",
   "description": "descrição curta do produto",
   "unit": "unidade como '1kg', '500ml', 'un', etc"
 }
 
-Se não conseguir identificar o preço, estime um valor de mercado realista. Retorne APENAS o JSON, sem texto adicional.`
+Se não conseguir identificar o preço, estime um valor de mercado realista. Retorne APENAS o JSON.`
           }
         ]
       },
@@ -51,6 +69,7 @@ Se não conseguir identificar o preço, estime um valor de mercado realista. Ret
             name: { type: Type.STRING },
             price: { type: Type.NUMBER },
             category: { type: Type.STRING },
+            subcategory_id: { type: Type.STRING, nullable: true },
             description: { type: Type.STRING },
             unit: { type: Type.STRING }
           },
@@ -79,6 +98,7 @@ Se não conseguir identificar o preço, estime um valor de mercado realista. Ret
       name: parsed.name || "Produto não identificado",
       price: parsed.price || 0,
       category: category,
+      subcategory_id: parsed.subcategory_id || undefined,
       description: parsed.description || "",
       unit: parsed.unit || "un"
     };
