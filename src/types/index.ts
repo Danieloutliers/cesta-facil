@@ -6,6 +6,13 @@ export interface Product {
   category: 'alimentos' | 'limpeza' | 'higiene' | 'bebidas';
   unit: string;
   description?: string;
+  subcategory_id?: string;
+}
+
+export interface SubCategory {
+  id: string;
+  label: string;
+  category_id: string;
 }
 
 export interface CartItem extends Product {

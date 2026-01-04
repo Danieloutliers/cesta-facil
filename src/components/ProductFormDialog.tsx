@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Product } from '@/types';
-import { useCategories } from '@/hooks/useData';
+import { useCategories, useSubcategories } from '@/hooks/useData';
 
 interface ProductFormDialogProps {
     open: boolean;
@@ -16,12 +16,14 @@ interface ProductFormDialogProps {
 
 export function ProductFormDialog({ open, onOpenChange, product, onSave }: ProductFormDialogProps) {
     const { categories } = useCategories();
+    const { subcategories } = useSubcategories(); // Use the hook
     const [formData, setFormData] = useState<Omit<Product, 'id'>>({
         name: '',
         price: 0,
         image: '',
         category: 'alimentos',
         unit: '',
+        subcategory_id: undefined,
     });
     const [loading, setLoading] = useState(false);
 
@@ -35,6 +37,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSave }: Produ
                     image: product.image,
                     category: product.category,
                     unit: product.unit,
+                    subcategory_id: product.subcategory_id,
                 });
             } else {
                 setFormData({
@@ -43,6 +46,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSave }: Produ
                     image: '',
                     category: 'alimentos',
                     unit: '',
+                    subcategory_id: undefined,
                 });
             }
         }
@@ -110,7 +114,14 @@ export function ProductFormDialog({ open, onOpenChange, product, onSave }: Produ
 
                     <div className="space-y-2">
                         <Label htmlFor="category">Categoria</Label>
-                        <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value as Product['category'] })}>
+                        <Select
+                            value={formData.category}
+                            onValueChange={(value) => setFormData({
+                                ...formData,
+                                category: value as Product['category'],
+                                subcategory_id: undefined // Reset subcategory when category changes
+                            })}
+                        >
                             <SelectTrigger>
                                 <SelectValue placeholder="Selecione uma categoria" />
                             </SelectTrigger>
@@ -120,6 +131,30 @@ export function ProductFormDialog({ open, onOpenChange, product, onSave }: Produ
                                         {cat.icon} {cat.label}
                                     </SelectItem>
                                 ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="subcategory">Subcategoria (Opcional)</Label>
+                        <Select
+                            value={formData.subcategory_id || "none"}
+                            onValueChange={(value) => setFormData({ ...formData, subcategory_id: value === "none" ? undefined : value })}
+                            disabled={!formData.category}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma subcategoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Nenhuma</SelectItem>
+                                {subcategories
+                                    .filter(sub => sub.category_id === formData.category)
+                                    .map((sub) => (
+                                        <SelectItem key={sub.id} value={sub.id}>
+                                            {sub.label}
+                                        </SelectItem>
+                                    ))
+                                }
                             </SelectContent>
                         </Select>
                     </div>

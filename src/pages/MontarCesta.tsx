@@ -9,17 +9,24 @@ import { PromoBanner } from '@/components/PromoBanner';
 import { CartPanel } from '@/components/CartPanel';
 import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
-import { useProducts, useCategories, seedDatabase } from '@/hooks/useData';
+import { useProducts, useCategories, useSubcategories, seedDatabase } from '@/hooks/useData';
 
 const MontarCesta = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('todos');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const { budget } = useCart();
 
   const { products, loading: loadingProducts, refetch } = useProducts();
   const { categories, loading: loadingCategories } = useCategories();
+  const { subcategories, loading: loadingSubcategories } = useSubcategories();
+
+  // Reset selected subcategory when main category changes
+  useEffect(() => {
+    setSelectedSubcategory(null);
+  }, [selectedCategory]);
 
   // Hide/Show Header based on sticky bar position
   useEffect(() => {
@@ -55,16 +62,23 @@ const MontarCesta = () => {
     }
   };
 
+  const filteredSubcategories = useMemo(() => {
+    if (selectedCategory === 'todos') return [];
+    return subcategories.filter(sub => sub.category_id === selectedCategory);
+  }, [subcategories, selectedCategory]);
+
   const filteredProducts = useMemo(() => {
     if (!products) return [];
     return products.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'todos' || product.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, searchQuery, selectedCategory]);
+      const matchesSubcategory = !selectedSubcategory || product.subcategory_id === selectedSubcategory;
 
-  const isLoading = loadingProducts || loadingCategories;
+      return matchesSearch && matchesCategory && matchesSubcategory;
+    });
+  }, [products, searchQuery, selectedCategory, selectedSubcategory]);
+
+  const isLoading = loadingProducts || loadingCategories || loadingSubcategories;
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,7 +99,7 @@ const MontarCesta = () => {
         </div>
 
         {/* Sticky Search Input & Categories - Agora juntos como barra fixa */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md py-3 -mx-4 px-4 shadow-sm mb-6 border-b border-border/40 md:static md:shadow-none md:p-0 md:bg-transparent md:mx-0 md:border-0">
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md py-3 -mx-4 px-4 shadow-sm mb-6 border-b border-border/40 md:static md:shadow-none md:p-0 md:bg-transparent md:mx-0 md:border-0 transition-all">
           {/* Search */}
           <div className="w-full relative max-w-2xl mx-auto mb-3">
             <div className="relative group">
@@ -100,9 +114,7 @@ const MontarCesta = () => {
             </div>
           </div>
 
-          {/* Categories Scroll Area (Horizontal Snap) */}
-          {/* Categories Scroll Area (Horizontal Snap) */}
-          {/* Categories Scroll Area (Horizontal Snap) */}
+          {/* Categories Scroll Area */}
           <div
             id="categories-container"
             className="flex overflow-x-auto pb-2 gap-2 snap-x hide-scrollbar"
@@ -124,6 +136,43 @@ const MontarCesta = () => {
               </Button>
             ))}
           </div>
+
+          {/* Subcategories Scroll Area (Only nice if category selected and has subcategories) */}
+          {filteredSubcategories.length > 0 && (
+            <div
+              className="flex overflow-x-auto pb-2 gap-2 snap-x hide-scrollbar mt-2 border-t border-border/50 pt-2 animate-in fade-in slide-in-from-top-2"
+            >
+              <Button
+                variant={selectedSubcategory === null ? 'outline' : 'ghost'}
+                size="sm"
+                onClick={() => setSelectedSubcategory(null)}
+                className={cn(
+                  "snap-start shrink-0 rounded-full h-7 px-3 text-[10px] font-medium transition-all border",
+                  selectedSubcategory === null
+                    ? "bg-primary/10 text-primary border-primary/20"
+                    : "text-muted-foreground border-transparent hover:bg-secondary"
+                )}
+              >
+                Todos
+              </Button>
+              {filteredSubcategories.map((sub) => (
+                <Button
+                  key={sub.id}
+                  variant={selectedSubcategory === sub.id ? 'outline' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSelectedSubcategory(sub.id)}
+                  className={cn(
+                    "snap-start shrink-0 rounded-full h-7 px-3 text-[10px] font-medium transition-all border",
+                    selectedSubcategory === sub.id
+                      ? "bg-primary/10 text-primary border-primary/20"
+                      : "text-muted-foreground border-transparent hover:bg-secondary"
+                  )}
+                >
+                  {sub.label}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Products Grid */}
@@ -137,33 +186,21 @@ const MontarCesta = () => {
             {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
-          </div>
-        )}
-
-        {!isLoading && filteredProducts.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-24 text-center px-4">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
-              <Search className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Nenhum produto encontrado</h3>
-            <p className="text-muted-foreground max-w-xs mx-auto mb-6">
-              Tente buscar por outro termo ou selecione outra categoria.
-            </p>
-            {products.length === 0 && (
-              <Button
-                onClick={handleSeed}
-                variant="outline"
-                className="border-dashed"
-              >
-                Popular Banco de Dados (Seed)
-              </Button>
+            {filteredProducts.length === 0 && (
+              <div className="col-span-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                <p>Nenhum produto encontrado nesta categoria.</p>
+              </div>
             )}
           </div>
         )}
       </main>
 
+      {/* Footer */}
+      <div className="pb-32 md:pb-6">
+        <Footer />
+      </div>
+
       <CartPanel />
-      <Footer />
     </div>
   );
 };

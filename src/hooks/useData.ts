@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Product, Category } from '@/types';
+import { Product, Category, SubCategory } from '@/types';
 import { products as initialProducts, categories as initialCategories } from '@/data/products';
 
 export function useProducts() {
@@ -60,6 +60,35 @@ export function useCategories() {
     }, []);
 
     return { categories, loading, error };
+}
+
+export function useSubcategories() {
+    const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchSubcategories = async () => {
+        try {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('subcategories')
+                .select('*')
+                .order('label');
+
+            if (error) throw error;
+            setSubcategories(data || []);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSubcategories();
+    }, []);
+
+    return { subcategories, loading, error, refetch: fetchSubcategories };
 }
 
 // Utility to seed data if empty
@@ -160,6 +189,40 @@ export async function updateCategory(id: string, updates: Partial<Category>) {
 export async function deleteCategory(id: string) {
     const { error } = await supabase
         .from('categories')
+        .delete()
+        .eq('id', id);
+
+    if (error) throw error;
+    return true;
+}
+
+// CRUD Operations for Subcategories
+export async function createSubcategory(subcategory: Omit<SubCategory, 'id'>) {
+    const { data, error } = await supabase
+        .from('subcategories')
+        .insert([subcategory])
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function updateSubcategory(id: string, updates: Partial<SubCategory>) {
+    const { data, error } = await supabase
+        .from('subcategories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function deleteSubcategory(id: string) {
+    const { error } = await supabase
+        .from('subcategories')
         .delete()
         .eq('id', id);
 

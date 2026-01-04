@@ -8,15 +8,19 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { useCategories, createCategory, updateCategory, deleteCategory } from '@/hooks/useData';
+import { Plus, Pencil, Trash2, Layers } from 'lucide-react';
+import { useCategories, createCategory, updateCategory, deleteCategory, useSubcategories } from '@/hooks/useData';
 import { CategoryFormDialog } from '@/components/CategoryFormDialog';
+import { SubcategoriesDialog } from '@/components/SubcategoriesDialog';
 import { Category } from '@/types';
 
 const Categories = () => {
     const { categories, loading } = useCategories();
+    const { subcategories } = useSubcategories();
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [subDialogOpen, setSubDialogOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [selectedCategoryForSubs, setSelectedCategoryForSubs] = useState<Category | null>(null);
 
     const handleSave = async (categoryData: Omit<Category, 'id'> | Category) => {
         try {
@@ -79,6 +83,7 @@ const Categories = () => {
                             <TableHead className="w-[80px]">Ícone</TableHead>
                             <TableHead>Nome</TableHead>
                             <TableHead>ID (Slug)</TableHead>
+                            <TableHead>Subcategorias</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -101,6 +106,25 @@ const Categories = () => {
                                     <TableCell className="text-2xl">{category.icon}</TableCell>
                                     <TableCell className="font-medium">{category.label}</TableCell>
                                     <TableCell className="text-muted-foreground font-mono text-sm">{category.id}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-muted-foreground">
+                                                {subcategories.filter(s => s.category_id === category.id).length} itens
+                                            </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 text-xs"
+                                                onClick={() => {
+                                                    setSelectedCategoryForSubs(category);
+                                                    setSubDialogOpen(true);
+                                                }}
+                                            >
+                                                <Layers className="h-3 w-3 mr-1" />
+                                                Subcategorias
+                                            </Button>
+                                        </div>
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <Button
@@ -133,6 +157,12 @@ const Categories = () => {
                 onOpenChange={setDialogOpen}
                 category={editingCategory}
                 onSave={handleSave}
+            />
+
+            <SubcategoriesDialog
+                open={subDialogOpen}
+                onOpenChange={setSubDialogOpen}
+                category={selectedCategoryForSubs}
             />
         </div>
     );
