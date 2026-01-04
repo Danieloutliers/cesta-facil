@@ -144,7 +144,7 @@ export function PromoBanner() {
                                             alt={slide.title}
                                             loading={index === 0 ? "eager" : "lazy"}
                                             decoding="async"
-                                            fetchPriority={index === 0 ? "high" : "auto"}
+                                            fetchpriority={index === 0 ? "high" : "auto"}
                                             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                                         />
                                         {/* Gradient Overlay for Text Readability */}
