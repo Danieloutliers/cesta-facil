@@ -30,6 +30,18 @@ export interface Order {
   missingItemPreference: 'substituir' | 'credito';
   createdAt: string;
   estimatedDelivery?: string;
+  paymentMethod?: string;
+  installments?: number;
+}
+
+export interface Consumer {
+  id: string;
+  fullName: string;
+  cpf: string;
+  rg?: string;
+  phone: string;
+  address: Address;
+  paymentPreference?: string;
 }
 
 export interface Address {

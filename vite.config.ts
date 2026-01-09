@@ -1,10 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { fileURLToPath } from "url";
 import { componentTagger } from "lovable-tagger";
 
+// Define __dirname for ES modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // https://vitejs.dev/config/
-// Force reload for new dependencies
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -14,6 +17,14 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        delivery: path.resolve(__dirname, 'delivery.html'),
+      },
     },
   },
 }));

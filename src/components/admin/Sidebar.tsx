@@ -64,6 +64,11 @@ const navGroups: NavGroup[] = [
                 title: 'Clientes',
                 href: '/admin/customers',
                 icon: Users
+            },
+            {
+                title: 'Financeiro',
+                href: '/admin/financial',
+                icon: DollarSign
             }
         ]
     },

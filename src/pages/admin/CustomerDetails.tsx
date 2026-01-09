@@ -1,21 +1,17 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, User, Phone, MapPin, ShoppingBag, Calendar, Clock } from 'lucide-react';
+import {
+    ArrowLeft, User, Phone, MapPin, ShoppingBag, Calendar,
+    Clock, CreditCard, FileText, TrendingUp, Package
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-
-interface Customer {
-    id: string;
-    phone: string;
-    name?: string;
-    email?: string;
-    avatar_url?: string;
-    photo_url?: string;
-    created_at: string;
-}
+import { ReceiptModal } from '@/components/admin/ReceiptModal';
+import { getRiskStatusLabel } from '@/utils/financial';
 
 interface Order {
     id: string;
@@ -25,14 +21,18 @@ interface Order {
     status: string;
     items: any[];
     address?: any;
+    delivery_date?: string;
+    payment_day?: number;
+    payment_date?: string;
+    payment_method?: string;
+    installments?: number;
 }
 
 export default function CustomerDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [customer, setCustomer] = useState<Customer | null>(null);
+    const [customer, setCustomer] = useState<any>(null);
     const [orders, setOrders] = useState<Order[]>([]);
-    const [lastAddress, setLastAddress] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -43,17 +43,14 @@ export default function CustomerDetails() {
 
     const fetchCustomerDetails = async () => {
         try {
-            // Fetch customer profile
-            const { data: user, error: userError } = await supabase
+            const { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', id)
                 .single();
 
             if (userError) throw userError;
-            setCustomer(user);
 
-            // Fetch customer orders
             const { data: userOrders, error: ordersError } = await supabase
                 .from('orders')
                 .select('*')
@@ -63,14 +60,21 @@ export default function CustomerDetails() {
             if (ordersError) throw ordersError;
             setOrders(userOrders || []);
 
-            // Get address from last order that has one
-            if (userOrders && userOrders.length > 0) {
-                const lastOrderWithAddress = userOrders.find((o: any) => o.address);
-                if (lastOrderWithAddress) {
-                    setLastAddress(lastOrderWithAddress.address);
-                }
-            }
+            if (userData?.phone) {
+                const { data: consumerData } = await supabase
+                    .from('consumers')
+                    .select('*')
+                    .eq('phone', userData.phone)
+                    .single();
 
+                if (consumerData) {
+                    setCustomer({ ...userData, ...consumerData });
+                } else {
+                    setCustomer(userData);
+                }
+            } else {
+                setCustomer(userData);
+            }
         } catch (error) {
             console.error('Error fetching customer details:', error);
         } finally {
@@ -79,136 +83,294 @@ export default function CustomerDetails() {
     };
 
     if (loading) {
-        return <div className="p-8 text-center">Carregando detalhes do cliente...</div>;
+        return <div className="flex items-center justify-center h-96"><div className="text-lg">Carregando...</div></div>;
     }
 
     if (!customer) {
         return (
-            <div className="p-8 text-center">
-                <p className="mb-4">Cliente não encontrado.</p>
-                <Button onClick={() => navigate('/admin/customers')}>Voltar para Clientes</Button>
+            <div className="text-center py-12">
+                <p className="text-muted-foreground mb-4">Cliente não encontrado.</p>
+                <Button onClick={() => navigate('/admin/customers')}>Voltar</Button>
             </div>
         );
     }
 
-    // Calculate stats
     const totalSpent = orders.reduce((acc, order) => acc + (Number(order.total) || 0), 0);
     const averageOrder = orders.length > 0 ? totalSpent / orders.length : 0;
+    const deliveredOrders = orders.filter(o => o.status === 'entregue').length;
 
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                <Button variant="ghost" size="icon" onClick={() => navigate('/admin/customers')} className="self-start sm:self-auto">
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
+    const getPaymentBadgeColor = (method: string) => {
+        switch (method) {
+            case 'credit_card': return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'debit_card': return 'bg-blue-100 text-blue-800 border-blue-200';
+            case 'money': return 'bg-green-100 text-green-800 border-green-200';
+            case 'carnet': return 'bg-orange-100 text-orange-800 border-orange-200';
+            default: return 'bg-gray-100 text-gray-800 border-gray-200';
+        }
+    };
 
-                <div className="flex flex-col sm:flex-row items-center gap-6 w-full">
-                    {/* Avatar / Photo */}
-                    <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 overflow-hidden shadow-sm shrink-0">
-                        {customer.avatar_url || customer.photo_url ? (
-                            <img
-                                src={customer.avatar_url || customer.photo_url}
-                                alt={customer.name}
-                                className="h-full w-full object-cover"
-                            />
-                        ) : (
-                            <User className="h-10 w-10 text-gray-400" />
+    const riskInfo = getRiskStatusLabel(customer.risk_status || 'safe');
+
+    const OrderItem = ({ order, showReceipt = true }: { order: Order, showReceipt?: boolean }) => {
+        const isLastOrder = customer?.last_order_number === order.id || customer?.last_order_number === order.order_number;
+        const deliveryDate = order.delivery_date || (isLastOrder ? customer?.last_delivery_date : null);
+        const paymentDay = order.payment_day || (isLastOrder ? customer?.payment_day : null);
+
+        return (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-2 rounded-lg hover:border-primary transition-colors gap-4">
+                <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <span className="font-bold text-lg">
+                            #{order.order_number?.slice(-6) || order.id.slice(0, 8)}
+                        </span>
+                        <Badge
+                            variant={order.status === 'entregue' ? 'default' : order.status === 'cancelado' ? 'destructive' : 'secondary'}
+                        >
+                            {order.status}
+                        </Badge>
+                        {showReceipt && order.status === 'entregue' && (
+                            <ReceiptModal order={order} customer={customer} />
+                        )}
+                        {order.payment_method && (
+                            <Badge className={`border ${getPaymentBadgeColor(order.payment_method)}`}>
+                                {order.payment_method === 'credit_card' ? 'Crédito' :
+                                    order.payment_method === 'debit_card' ? 'Débito' :
+                                        order.payment_method === 'money' ? 'Dinheiro' :
+                                            order.payment_method === 'carnet' ? 'Carnê' : order.payment_method}
+                            </Badge>
                         )}
                     </div>
+                    <div className="flex flex-col gap-1 text-sm text-muted-foreground mt-2">
+                        <span className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            Pedido: {new Date(order.created_at).toLocaleDateString()} • {new Date(order.created_at).toLocaleTimeString().slice(0, 5)}
+                        </span>
 
-                    <div className="text-center sm:text-left flex-1 space-y-2">
-                        <div>
-                            <h2 className="text-3xl font-bold tracking-tight">{customer.name || 'Cliente sem nome'}</h2>
-                            <p className="text-muted-foreground flex items-center justify-center sm:justify-start gap-2">
-                                <Phone className="h-4 w-4" /> {customer.phone}
-                            </p>
-                        </div>
+                        {deliveryDate && (
+                            <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                <Calendar className="h-3.5 w-3.5" />
+                                Entregue: {new Date(deliveryDate).toLocaleDateString()}
+                            </span>
+                        )}
 
-                        {/* Address Badge - If available */}
-                        {lastAddress && (
-                            <div className="flex items-center justify-center sm:justify-start gap-2 text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full w-fit mx-auto sm:mx-0">
-                                <MapPin className="h-3 w-3 shrink-0" />
-                                <span>
-                                    {lastAddress.street}, {lastAddress.number} - {lastAddress.neighborhood}, {lastAddress.city}
-                                </span>
+                        {(order.payment_date || paymentDay || order.installments) && (
+                            <div className="flex items-center gap-3 mt-1">
+                                {order.payment_date ? (
+                                    <span className="flex items-center gap-1 text-orange-600 font-medium bg-orange-50 px-2 py-0.5 rounded">
+                                        <Calendar className="h-3.5 w-3.5" />
+                                        Venc: {new Date(order.payment_date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
+                                    </span>
+                                ) : paymentDay ? (
+                                    <span className="flex items-center gap-1 text-orange-600 font-medium bg-orange-50 px-2 py-0.5 rounded">
+                                        <Calendar className="h-3.5 w-3.5" />
+                                        Venc: Dia {paymentDay}
+                                    </span>
+                                ) : null}
+                                {order.installments && order.installments > 1 && (
+                                    <span className="flex items-center gap-1 text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded">
+                                        <CreditCard className="h-3.5 w-3.5" />
+                                        {order.installments}x
+                                    </span>
+                                )}
                             </div>
                         )}
                     </div>
                 </div>
+                <div className="flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="text-2xl font-bold text-green-600">
+                            R$ {Number(order.total).toFixed(2).replace('.', ',')}
+                        </p>
+                        {order.installments && order.installments > 1 && (
+                            <p className="text-xs text-muted-foreground">
+                                {order.installments}x de {(Number(order.total) / order.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </p>
+                        )}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/admin/orders')}>
+                        Ver Detalhes
+                    </Button>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="space-y-6 pb-8">
+            <div className="flex items-center gap-3">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigate('/admin/customers')}
+                >
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Detalhes do Cliente</h1>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-muted-foreground">Informações completas e histórico</p>
+                        <Badge className={`${riskInfo.color} border-0`}>
+                            {riskInfo.icon} {riskInfo.label}
+                        </Badge>
+                    </div>
+                </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <Card className="border-2">
+                <CardContent className="pt-6">
+                    <div className="flex flex-col md:flex-row gap-6">
+                        <div className="flex justify-center md:justify-start">
+                            <div className="h-32 w-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg relative">
+                                <User className="h-16 w-16 text-white" />
+                                <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-md" title={riskInfo.label}>
+                                    <span className="text-2xl">{riskInfo.icon}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 space-y-4">
+                            <div>
+                                <h2 className="text-2xl font-bold">
+                                    {customer.full_name || customer.name || 'Cliente sem nome'}
+                                </h2>
+                                <div className="flex flex-wrap gap-3 mt-2">
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <Phone className="h-4 w-4" />
+                                        <span className="text-sm font-medium">{customer.phone}</span>
+                                    </div>
+                                    {customer.cpf && (
+                                        <div className="flex items-center gap-1.5 text-muted-foreground border-l pl-3">
+                                            <FileText className="h-4 w-4" />
+                                            <span className="text-sm">CPF: {customer.cpf}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {customer.address && (
+                                <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+                                    <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                                    <div className="text-sm">
+                                        <p className="font-medium text-blue-900 dark:text-blue-100">
+                                            {customer.address.street}, {customer.address.number}
+                                        </p>
+                                        <p className="text-blue-700 dark:text-blue-300">
+                                            {customer.address.neighborhood} - {customer.address.city}
+                                        </p>
+                                        {customer.address.complement && (
+                                            <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">
+                                                Complemento: {customer.address.complement}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="grid gap-4 md:grid-cols-4">
+                <Card className={customer.risk_status === 'risk' ? 'border-red-200 bg-red-50' : ''}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Status Financeiro</CardTitle>
+                        <TrendingUp className={`h-4 w-4 ${riskInfo.color.split(' ')[1]}`} />
+                    </CardHeader>
+                    <CardContent>
+                        <div className={`text-2xl font-bold ${riskInfo.color.split(' ')[1]}`}>
+                            {riskInfo.label}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Score de Crédito</p>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Gasto</CardTitle>
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <ShoppingBag className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">R$ {totalSpent.toFixed(2).replace('.', ',')}</div>
+                        <div className="text-2xl font-bold text-green-600">
+                            R$ {totalSpent.toFixed(2).replace('.', ',')}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Em {orders.length} pedidos</p>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos Realizados</CardTitle>
-                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{orders.length}</div>
-                    </CardContent>
-                </Card>
+
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <CreditCard className="h-4 w-4 text-purple-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">R$ {averageOrder.toFixed(2).replace('.', ',')}</div>
+                        <div className="text-2xl font-bold text-purple-600">
+                            R$ {averageOrder.toFixed(2).replace('.', ',')}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Por pedido</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Último Pedido</CardTitle>
+                        <Calendar className="h-4 w-4 text-orange-600" />
+                    </CardHeader>
+                    <CardContent>
+                        {customer.last_order_total ? (
+                            <>
+                                <div className="text-2xl font-bold text-orange-600">
+                                    R$ {Number(customer.last_order_total).toFixed(2).replace('.', ',')}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {customer.last_delivery_date && new Date(customer.last_delivery_date).toLocaleDateString()}
+                                </p>
+                            </>
+                        ) : (
+                            <div className="text-sm text-muted-foreground">Nenhum pedido</div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Histórico de Pedidos</CardTitle>
+                    <div className="flex items-center gap-2">
+                        <Package className="h-5 w-5" />
+                        <CardTitle>Histórico de Pedidos</CardTitle>
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
-                        {orders.length === 0 ? (
-                            <p className="text-center text-muted-foreground py-4">Nenhum pedido realizado.</p>
-                        ) : (
-                            orders.map((order) => (
-                                <div key={order.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-4">
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-semibold">Pedido #{order.order_number?.slice(-6) || order.id.slice(0, 8)}</span>
-                                            <Badge variant={
-                                                order.status === 'entregue' ? 'default' :
-                                                    order.status === 'cancelado' ? 'destructive' : 'secondary'
-                                            }>
-                                                {order.status}
-                                            </Badge>
-                                        </div>
-                                        <div className="text-sm text-muted-foreground flex items-center gap-4">
-                                            <span className="flex items-center gap-1">
-                                                <Calendar className="h-3 w-3" />
-                                                {new Date(order.created_at).toLocaleDateString()}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <Clock className="h-3 w-3" />
-                                                {new Date(order.created_at).toLocaleTimeString()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <p className="font-bold">R$ {Number(order.total).toFixed(2).replace('.', ',')}</p>
-                                        <Button variant="outline" size="sm" onClick={() => navigate('/admin/orders')}>
-                                            Ver no Painel
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                    <Tabs defaultValue="all" className="w-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="all">Todos ({orders.length})</TabsTrigger>
+                            <TabsTrigger value="delivered">Entregues ({deliveredOrders})</TabsTrigger>
+                            <TabsTrigger value="pending">
+                                Pendentes ({orders.length - deliveredOrders})
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="all" className="space-y-4 mt-4">
+                            {orders.length === 0 ? (
+                                <p className="text-center text-muted-foreground py-8">Nenhum pedido encontrado.</p>
+                            ) : (
+                                orders.map((order) => (
+                                    <OrderItem key={order.id} order={order} />
+                                ))
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="delivered" className="space-y-4 mt-4">
+                            {orders.filter(o => o.status === 'entregue').map((order) => (
+                                <OrderItem key={order.id} order={order} />
+                            ))}
+                        </TabsContent>
+
+                        <TabsContent value="pending" className="space-y-4 mt-4">
+                            {orders.filter(o => o.status !== 'entregue').map((order) => (
+                                <OrderItem key={order.id} order={order} showReceipt={false} />
+                            ))}
+                        </TabsContent>
+                    </Tabs>
                 </CardContent>
             </Card>
         </div>

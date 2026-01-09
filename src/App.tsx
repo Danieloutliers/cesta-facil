@@ -25,9 +25,15 @@ const CustomerDetails = lazy(() => import("./pages/admin/CustomerDetails"));
 const BudgetOptions = lazy(() => import("./pages/admin/BudgetOptions"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Categories = lazy(() => import("./pages/admin/Categories"));
+const Financial = lazy(() => import("./pages/admin/Financial"));
 const Banners = lazy(() => import("./pages/admin/Banners"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
+// Delivery Routes
+const DeliveryLayout = lazy(() => import("@/layouts/DeliveryLayout"));
+const RouteList = lazy(() => import("@/pages/delivery/RouteList"));
+const DeliveryOrderDetail = lazy(() => import("@/pages/delivery/OrderDetail"));
+const DeliveryLogin = lazy(() => import("@/pages/delivery/DeliveryLogin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -61,9 +67,20 @@ const App = () => (
                     <Route path="banners" element={<Banners />} />
                     <Route path="customers" element={<Customers />} />
                     <Route path="customers/:id" element={<CustomerDetails />} />
+                    <Route path="financial" element={<Financial />} />
                     <Route path="whatsapp" element={<WhatsappConnect />} />
                     <Route path="reports" element={<Reports />} />
                     <Route path="settings" element={<Settings />} />
+                  </Route>
+
+                  {/* Delivery Driver Routes - Simple phone auth */}
+                  <Route path="/delivery/login" element={<DeliveryLogin />} />
+                  <Route path="/delivery" element={<DeliveryLayout />}>
+                    <Route index element={<RouteList />} />
+                    <Route path="order/:id" element={<DeliveryOrderDetail />} />
+                    {/* Placeholder for future map/profile */}
+                    <Route path="map" element={<div className="p-4">Mapa em breve</div>} />
+                    <Route path="profile" element={<div className="p-4">Perfil em breve</div>} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
@@ -73,7 +90,7 @@ const App = () => (
         </AuthProvider>
       </ThemeProvider>
     </TooltipProvider>
-  </QueryClientProvider>
+  </QueryClientProvider >
 );
 
 export default App;
