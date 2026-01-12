@@ -8,13 +8,33 @@ import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { useCart } from '@/contexts/CartContext';
 import { useBudgetOptions } from '@/hooks/useBudgetOptions';
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from 'react';
+
 const Index = () => {
     const navigate = useNavigate();
     const { budget, setBudget } = useCart();
     const { options: budgetOptions, loading } = useBudgetOptions();
+    const [selectedOption, setSelectedOption] = useState<{ value: number, label: string } | null>(null);
 
-    const handleStartShopping = () => {
-        navigate('/montar-cesta');
+    const handleBudgetSelect = (option: { value: number, label: string }) => {
+        setSelectedOption(option);
+    };
+
+    const confirmSelection = () => {
+        if (selectedOption) {
+            setBudget(selectedOption.value);
+            navigate('/montar-cesta');
+        }
     };
 
     return (
@@ -52,22 +72,31 @@ const Index = () => {
                                     description={option.description}
                                     popular={option.popular}
                                     selected={budget === option.value}
-                                    onSelect={() => setBudget(option.value)}
+                                    onSelect={() => handleBudgetSelect(option)}
                                 />
                             ))}
                         </div>
                     )}
 
-                    <div className="text-center mt-10 md:mt-12">
-                        <Button
-                            size="lg"
-                            onClick={handleStartShopping}
-                            className="w-full sm:w-auto px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all"
-                        >
-                            Montar Minha Cesta
-                            <ArrowRight className="h-5 w-5 ml-2" />
-                        </Button>
-                    </div>
+                    <AlertDialog open={!!selectedOption} onOpenChange={(open) => !open && setSelectedOption(null)}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmar Valor?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Você escolheu a cesta de <span className="font-bold text-foreground">{selectedOption?.label}</span>.
+                                    Vamos começar a montá-la?
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Escolher Outro</AlertDialogCancel>
+                                <AlertDialogAction onClick={confirmSelection} className="bg-primary hover:bg-primary/90">
+                                    Sim, Montar Cesta ({selectedOption?.label})
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+
+
                 </div>
             </section>
 

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const BOT_API_URL = process.env.BOT_API_URL || 'http://18.218.95.248:3001';
+const BOT_API_URL = process.env.BOT_API_URL || 'http://52.14.197.217:3001';
 
 export default async function handler(
     req: VercelRequest,

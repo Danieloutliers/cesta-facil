@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, total, budget, savings, addOrder, itemCount, orders } = useCart();
+  const { items, total, budget, savings, addOrder, updateOrder, itemCount, orders, editingOrderId } = useCart();
   const [step, setStep] = useState<'address' | 'preferences' | 'success'>('address');
   const [missingPreference, setMissingPreference] = useState<'substituir' | 'credito'>('substituir');
   const [loading, setLoading] = useState(false);
@@ -65,11 +65,15 @@ const Checkout = () => {
     } else if (step === 'preferences') {
       try {
         setLoading(true);
-        await addOrder(address, missingPreference);
+        if (editingOrderId) {
+          await updateOrder(address, missingPreference);
+        } else {
+          await addOrder(address, missingPreference);
+        }
         setStep('success');
       } catch (error) {
         toast({
-          title: 'Erro ao criar pedido',
+          title: editingOrderId ? 'Erro ao atualizar pedido' : 'Erro ao criar pedido',
           description: 'Tente novamente mais tarde.',
           variant: 'destructive',
         });
@@ -103,9 +107,13 @@ const Checkout = () => {
                 <div className="absolute inset-0 rounded-full animate-ping bg-green-500/20 duration-1000" />
                 <Check className="h-10 w-10 text-green-600 dark:text-green-400 relative z-10" />
               </div>
-              <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600">Pedido Confirmado!</h1>
+              <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600">
+                {editingOrderId ? 'Pedido Atualizado!' : 'Pedido Confirmado!'}
+              </h1>
               <p className="text-muted-foreground mb-10 max-w-md mx-auto text-lg leading-relaxed">
-                Seu pedido foi recebido com sucesso. Em breve entraremos em contato para confirmar a entrega.
+                {editingOrderId
+                  ? 'Seu pedido foi atualizado com sucesso.'
+                  : 'Seu pedido foi recebido com sucesso. Em breve entraremos em contato para confirmar a entrega.'}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button onClick={() => navigate('/')} className="w-full sm:w-auto bg-primary hover:bg-primary/90 h-12 px-8 text-lg font-medium shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
@@ -247,7 +255,7 @@ const Checkout = () => {
                     </div>
                   ) : (step === 'address' ? (
                     <span className="flex items-center gap-2">Continuar para Pedido <ArrowRight className="w-5 h-5" /></span>
-                  ) : 'Confirmar Pedido')}
+                  ) : (editingOrderId ? 'Atualizar Pedido' : 'Confirmar Pedido'))}
                 </Button>
               </div>
 

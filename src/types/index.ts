@@ -25,7 +25,7 @@ export interface Order {
   budget: number;
   total: number;
   savings: number;
-  status: 'processando' | 'separando' | 'em_rota' | 'entregue';
+  status: 'processando' | 'separando' | 'em_rota' | 'entregue' | 'saiu_para_entrega' | 'cancelado';
   address: Address;
   missingItemPreference: 'substituir' | 'credito';
   createdAt: string;

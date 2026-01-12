@@ -97,11 +97,7 @@ const DeliveryOrderDetail = () => {
             if (orderError) throw orderError;
 
             // 2. Upsert Customer/Consumer Data
-            console.log('💾 Salvando dados do consumidor:', {
-                phone: values.phone,
-                fullName: values.fullName,
-                cpf: values.cpf
-            });
+
 
             const { error: consumerError } = await supabase
                 .from('consumers')
@@ -131,7 +127,7 @@ const DeliveryOrderDetail = () => {
             if (consumerError) {
                 console.error('❌ Erro ao salvar consumidor:', consumerError);
             } else {
-                console.log('✅ Dados do consumidor salvos com sucesso!');
+
 
                 // 2b. Generate Receivables (Financial System)
                 if (values.installments && values.installments > 0) {
@@ -167,7 +163,7 @@ const DeliveryOrderDetail = () => {
                                 .insert(receivables);
 
                             if (finError) console.error("❌ Erro ao gerar contas a receber:", finError);
-                            else console.log("💰 Contas a receber geradas!");
+                            else { }
                         }
                     } catch (finErr) {
                         console.error("Erro processamento financeiro:", finErr);
@@ -178,7 +174,7 @@ const DeliveryOrderDetail = () => {
             // 3. Send WhatsApp Messages (Delivered Template + Receipt)
             try {
                 if (values.phone) {
-                    console.log('outbox 📤 Iniciando envio de mensagens WhatsApp...');
+
 
                     // 3.1 Generate Receipt Content
                     const receiptMessage = generateReceiptMessage({

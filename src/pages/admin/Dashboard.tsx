@@ -13,6 +13,13 @@ interface DashboardStats {
     totalOrders: number;
     totalRevenue: number;
     pendingOrders: number;
+    statusCounts: {
+        processando: number;
+        separando: number;
+        em_rota: number;
+        entregue: number;
+        cancelado: number;
+    };
 }
 
 interface SalesData {
@@ -34,7 +41,14 @@ const Dashboard = () => {
         averagePrice: 0,
         totalOrders: 0,
         totalRevenue: 0,
-        pendingOrders: 0
+        pendingOrders: 0,
+        statusCounts: {
+            processando: 0,
+            separando: 0,
+            em_rota: 0,
+            entregue: 0,
+            cancelado: 0
+        }
     });
     const [salesData, setSalesData] = useState<SalesData[]>([]);
     const [topProducts, setTopProducts] = useState<ProductData[]>([]);
@@ -115,13 +129,23 @@ const Dashboard = () => {
                 .sort((a, b) => b.quantity - a.quantity)
                 .slice(0, 5);
 
+            // Calculate status counts
+            const statusCounts = {
+                processando: orders?.filter(o => o.status === 'processando').length || 0,
+                separando: orders?.filter(o => o.status === 'separando').length || 0,
+                em_rota: orders?.filter(o => o.status === 'saiu_para_entrega' || o.status === 'em_rota').length || 0,
+                entregue: orders?.filter(o => o.status === 'entregue').length || 0,
+                cancelado: orders?.filter(o => o.status === 'cancelado').length || 0
+            };
+
             setStats({
                 totalProducts: productsCount || 0,
                 activeCategories: categoriesCount || 0,
                 averagePrice: avgPrice,
                 totalOrders,
                 totalRevenue,
-                pendingOrders
+                pendingOrders,
+                statusCounts
             });
 
             setSalesData(salesChartData);
@@ -138,6 +162,50 @@ const Dashboard = () => {
             <div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
                 <p className="text-sm sm:text-base text-muted-foreground">Visão geral do seu negócio</p>
+            </div>
+
+            {/* Funil de Pedidos */}
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-5">
+                <Card className="bg-yellow-50 border-yellow-200">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-xs font-medium text-yellow-800 uppercase tracking-wider">Processando</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-2xl font-bold text-yellow-900">{loading ? '-' : stats.statusCounts.processando}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-xs font-medium text-blue-800 uppercase tracking-wider">Separando</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-2xl font-bold text-blue-900">{loading ? '-' : stats.statusCounts.separando}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-indigo-50 border-indigo-200">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-xs font-medium text-indigo-800 uppercase tracking-wider">Em Rota</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-2xl font-bold text-indigo-900">{loading ? '-' : stats.statusCounts.em_rota}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-green-50 border-green-200">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-xs font-medium text-green-800 uppercase tracking-wider">Entregue</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-2xl font-bold text-green-900">{loading ? '-' : stats.statusCounts.entregue}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-red-50 border-red-200">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-xs font-medium text-red-800 uppercase tracking-wider">Cancelado</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-2xl font-bold text-red-900">{loading ? '-' : stats.statusCounts.cancelado}</div>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Stats Cards */}

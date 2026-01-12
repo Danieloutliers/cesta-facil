@@ -65,7 +65,7 @@ export const FinancialDashboard = () => {
                 o.payment_method === 'carnet'
             );
 
-            console.log(`🔎 Encontrados ${targetOrders?.length} pedidos elegíveis.`);
+
 
             // 2. Fetch existing consumer IDs map
             const { data: consumers } = await supabase
@@ -87,7 +87,9 @@ export const FinancialDashboard = () => {
             for (const order of targetOrders || []) {
                 if (existingIds.has(order.id) || existingIds.has(order.order_number)) continue;
 
-                const phone = order.user?.phone;
+                // Fix: Handle user as array or object depending on Supabase return type
+                const u = order.user as any;
+                const phone = Array.isArray(u) ? u[0]?.phone : u?.phone;
                 const consumerId = consumerMap.get(phone);
 
                 if (consumerId) {

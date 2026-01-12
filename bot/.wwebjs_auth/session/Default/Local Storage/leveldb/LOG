@@ -1,3 +1,9 @@
-2026/01/09-13:58:35.977 36d8 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
-2026/01/09-13:58:36.060 36d8 Recovering log #3
-2026/01/09-13:58:36.173 36d8 Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Local Storage\leveldb/000003.log 
+2026/01/10-15:58:52.611 648 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
+2026/01/10-15:58:52.687 648 Recovering log #3
+2026/01/10-15:58:52.709 648 Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Local Storage\leveldb/000003.log 
+2026/01/10-16:01:53.934 648 Level-0 table #5: started
+2026/01/10-16:01:53.963 648 Level-0 table #5: 22675 bytes OK
+2026/01/10-16:01:53.972 648 Delete type=0 #3
+2026/01/10-18:29:09.155 648 Level-0 table #7: started
+2026/01/10-18:29:09.179 648 Level-0 table #7: 16829 bytes OK
+2026/01/10-18:29:09.187 648 Delete type=0 #4

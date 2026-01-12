@@ -36,12 +36,29 @@ export default function WhatsappConnect() {
     const [templates, setTemplates] = useState<Templates | null>(null);
     const [editingTemplates, setEditingTemplates] = useState<Templates | null>(null);
 
-    // Manual send state
     const [manualPhone, setManualPhone] = useState('');
     const [manualMessage, setManualMessage] = useState('');
     const [sending, setSending] = useState(false);
+    const [qrTimer, setQrTimer] = useState(60);
 
     const { toast } = useToast();
+
+    // QR Code Timer Effect
+    useEffect(() => {
+        if (status?.qr && !status?.ready) {
+            setQrTimer(60); // Reset timer when new QR appears
+            const interval = setInterval(() => {
+                setQrTimer((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [status?.qr]);
 
     const checkStatus = async () => {
         setLoading(true);
@@ -114,7 +131,7 @@ export default function WhatsappConnect() {
     const handleDisconnect = async () => {
         if (!confirm('Tem certeza que deseja desconectar o WhatsApp?')) return;
 
-        console.log("Iniciando desconexão...");
+
         setLoading(true);
 
         try {
@@ -122,7 +139,7 @@ export default function WhatsappConnect() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-            console.log(`Chamando ${BOT_API_URL}/logout`);
+
             const res = await fetch(`${BOT_API_URL}/logout`, {
                 method: 'POST',
                 signal: controller.signal
@@ -224,8 +241,9 @@ export default function WhatsappConnect() {
         loadMessageLog();
         loadTemplates();
 
-        const interval = setInterval(checkStatus, 5000);
-        const logInterval = setInterval(loadMessageLog, 10000);
+        // Reduzir frequência: status a cada 10s, logs a cada 30s
+        const interval = setInterval(checkStatus, 10000);
+        const logInterval = setInterval(loadMessageLog, 30000);
 
         return () => {
             clearInterval(interval);
@@ -296,8 +314,25 @@ export default function WhatsappConnect() {
                             {/* QR Code Area */}
                             <div className="relative">
                                 {status?.qr ? (
-                                    <div className="p-4 bg-white rounded-xl shadow-sm border">
-                                        <QRCodeSVG value={status.qr} size={200} />
+                                    <div className="space-y-3">
+                                        <div className="p-4 bg-white rounded-xl shadow-sm border">
+                                            <QRCodeSVG value={status.qr} size={200} />
+                                        </div>
+                                        {/* QR Timer */}
+                                        <div className="text-center space-y-2">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className="text-sm font-medium text-muted-foreground">
+                                                    Expira em: <span className={`font-bold ${qrTimer <= 10 ? 'text-red-500' : 'text-foreground'}`}>{qrTimer}s</span>
+                                                </div>
+                                            </div>
+                                            {/* Progress Bar */}
+                                            <div className="w-full max-w-[200px] mx-auto h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full transition-all duration-1000 ${qrTimer <= 10 ? 'bg-red-500' : 'bg-green-500'}`}
+                                                    style={{ width: `${(qrTimer / 60) * 100}%` }}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : status?.ready ? (
                                     <div className="h-48 w-48 rounded-xl bg-green-50 border-2 border-green-100 flex items-center justify-center">

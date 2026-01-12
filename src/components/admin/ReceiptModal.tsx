@@ -25,7 +25,7 @@ export function ReceiptModal({ order, customer }: ReceiptModalProps) {
     const { toast } = useToast();
 
     // Debug logging
-    console.log('🧾 [ReceiptModal] Dados do pedido:', order);
+
 
     const formatDate = (dateString: string) => {
         // STRICT: Only use provided date or delivery_date. NO fallback to created_at/updated_at for delivery fields.

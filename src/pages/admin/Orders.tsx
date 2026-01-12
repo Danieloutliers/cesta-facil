@@ -13,7 +13,8 @@ import {
     CheckCircle2,
     ArrowRight,
     ShoppingBag,
-    MessageCircle
+    MessageCircle,
+    XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +68,12 @@ const statusConfig = {
         label: 'Entregue',
         color: 'bg-green-50 text-green-700 border-green-200',
         icon: CheckCircle2,
+        next: null
+    },
+    cancelado: {
+        label: 'Cancelado',
+        color: 'bg-red-50 text-red-700 border-red-200',
+        icon: XCircle,
         next: null
     },
 };
@@ -386,8 +393,9 @@ export default function Orders() {
     const ordersByStatus = {
         processando: orders.filter((o) => o.status === 'processando'),
         separando: orders.filter((o) => o.status === 'separando'),
-        em_rota: orders.filter((o) => o.status === 'em_rota'),
+        em_rota: orders.filter((o) => o.status === 'em_rota' || o.status === 'saiu_para_entrega'),
         entregue: orders.filter((o) => o.status === 'entregue'),
+        cancelado: orders.filter((o) => o.status === 'cancelado'),
     };
 
     const activeOrder = activeDragId ? orders.find(o => o.id === activeDragId) : null;
@@ -506,6 +514,15 @@ export default function Orders() {
                     >
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Entregues
+                    </Button>
+                    <Button
+                        variant={mobileStatusFilter === 'cancelado' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setMobileStatusFilter('cancelado')}
+                        className="flex-shrink-0 h-9"
+                    >
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Cancelados
                     </Button>
                 </div>
             </div>

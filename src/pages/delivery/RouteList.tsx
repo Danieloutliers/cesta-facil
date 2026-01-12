@@ -39,7 +39,7 @@ const RouteList = () => {
 
     const loadRouteOrders = async () => {
         setLoading(true);
-        console.log("Starting loadRouteOrders...");
+
 
         // Safety timeout
         const timeoutId = setTimeout(() => {
@@ -51,7 +51,7 @@ const RouteList = () => {
         }, 8000);
 
         try {
-            console.log("Fetching orders from supabase...");
+
             const { data, error } = await supabase
                 .from('orders')
                 .select(`
@@ -69,7 +69,7 @@ const RouteList = () => {
                 throw error;
             }
 
-            console.log("Orders fetched:", data?.length);
+
 
             let transformedOrders: OrderWithUser[] = data.map((row: any) => ({
                 id: row.order_number || row.id,
@@ -175,7 +175,7 @@ const RouteList = () => {
                         });
                     })
                     .then(res => {
-                        if (res && res.ok) console.log("Mensagem de rota enviada");
+                        if (res && res.ok) { } // Success silently
                         else console.warn("Falha ao enviar mensagem de rota");
                     })
                     .catch(err => console.error("Erro no envio mensagens:", err));

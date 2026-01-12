@@ -20,6 +20,7 @@ const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const WhatsappConnect = lazy(() => import('./pages/admin/Whatsapp'));
+const Chat = lazy(() => import('./pages/admin/Chat'));
 const Customers = lazy(() => import("./pages/admin/Customers"));
 const CustomerDetails = lazy(() => import("./pages/admin/CustomerDetails"));
 const BudgetOptions = lazy(() => import("./pages/admin/BudgetOptions"));
@@ -69,6 +70,7 @@ const App = () => (
                     <Route path="customers/:id" element={<CustomerDetails />} />
                     <Route path="financial" element={<Financial />} />
                     <Route path="whatsapp" element={<WhatsappConnect />} />
+                    <Route path="chat" element={<Chat />} />
                     <Route path="reports" element={<Reports />} />
                     <Route path="settings" element={<Settings />} />
                   </Route>

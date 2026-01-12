@@ -106,6 +106,11 @@ const navGroups: NavGroup[] = [
                 icon: MessageCircle
             },
             {
+                title: 'Chat',
+                href: '/admin/chat',
+                icon: MessageCircle
+            },
+            {
                 title: 'Configurações',
                 href: '/admin/settings',
                 icon: Settings

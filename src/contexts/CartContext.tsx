@@ -20,7 +20,12 @@ interface CartContextType {
   orders: Order[];
   addOrder: (address: Address, missingItemPreference: 'substituir' | 'credito') => Promise<Order>;
   repeatOrder: (order: Order) => void;
+  refreshOrders: () => Promise<void>;
   loading: boolean;
+  editingOrderId: string | null;
+  startEditingOrder: (order: Order) => void;
+  updateOrder: (address: Address, missingItemPreference: 'substituir' | 'credito') => Promise<void>;
+  cancelEditing: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -30,6 +35,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [budget, setBudget] = useState<number>(300);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const { user } = useAuth();
 
   // Load cart from localStorage
@@ -227,6 +233,54 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setBudget(order.budget);
   };
 
+  const startEditingOrder = (order: Order) => {
+    setItems(order.items);
+    setBudget(order.budget);
+    setEditingOrderId(order.id);
+  };
+
+  const cancelEditing = () => {
+    setEditingOrderId(null);
+    clearCart();
+  };
+
+  const updateOrder = async (address: Address, missingItemPreference: 'substituir' | 'credito'): Promise<void> => {
+    if (!user || !editingOrderId) {
+      throw new Error('No user or order to edit');
+    }
+
+    const updatedTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const updatedSavings = budget * 0.15; // Re-calculate savings if needed
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          items: items,
+          budget: budget,
+          total: updatedTotal,
+          savings: updatedSavings,
+          address: address,
+          missing_item_preference: missingItemPreference,
+          updated_at: new Date().toISOString()
+        })
+        .eq('order_number', editingOrderId);
+
+      if (error) throw error;
+
+      // Update local state by re-fetching
+      await loadOrders();
+
+      // Reset editing state
+      setEditingOrderId(null);
+      clearCart();
+
+    } catch (error) {
+      console.error('Error updating order:', error);
+      throw error;
+    }
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -245,7 +299,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         orders,
         addOrder,
         repeatOrder,
+        refreshOrders: loadOrders,
         loading,
+        editingOrderId,
+        startEditingOrder,
+        updateOrder,
+        cancelEditing
       }}
     >
       {children}

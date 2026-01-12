@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { Notifications } from '@/components/Notifications';
 
 export function Header() {
   const { itemCount } = useCart();
@@ -107,17 +108,11 @@ export function Header() {
 
           {/* Mobile Menu Button Removed - Using Bottom Nav */}
 
+
           {/* Mobile Actions (Notifications & Profile) */}
           <div className="flex md:hidden items-center gap-1">
             {/* Notification Bell */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notificações</span>
-            </Button>
+            <Notifications />
 
             {/* User Avatar */}
             {user ? (

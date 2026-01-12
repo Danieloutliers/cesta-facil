@@ -73,7 +73,7 @@ export function MobileNavBar() {
             if (item.isCenter) {
               return (
                 <Link
-                  key={item.href}
+                  key={item.label}
                   to={item.href}
                   className="relative flex flex-col items-center -mt-6 group"
                 >
@@ -146,7 +146,7 @@ export function MobileNavBar() {
 
             return (
               <Link
-                key={item.href}
+                key={item.label}
                 to={item.href}
                 className="flex flex-col items-center justify-center min-w-[50px] py-1 group"
               >
