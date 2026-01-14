@@ -32,6 +32,8 @@ export interface Order {
   estimatedDelivery?: string;
   paymentMethod?: string;
   installments?: number;
+  paymentDay?: number;
+  paymentDate?: string;
 }
 
 export interface Consumer {

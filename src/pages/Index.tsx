@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
@@ -7,6 +7,8 @@ import { BudgetCard } from '@/components/BudgetCard';
 import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { useCart } from '@/contexts/CartContext';
 import { useBudgetOptions } from '@/hooks/useBudgetOptions';
+import { useToast } from '@/hooks/use-toast';
+import { MobileNavBar } from '@/components/MobileNavBar'; // Import added
 
 import {
     AlertDialog,
@@ -18,13 +20,28 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const Index = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { toast } = useToast();
     const { budget, setBudget } = useCart();
     const { options: budgetOptions, loading } = useBudgetOptions();
     const [selectedOption, setSelectedOption] = useState<{ value: number, label: string } | null>(null);
+
+    // Show error message if redirected from admin route
+    useEffect(() => {
+        if (location.state?.error) {
+            toast({
+                variant: "destructive",
+                title: "Acesso Negado",
+                description: location.state.error,
+            });
+            // Clear the error from state
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state, toast]);
 
     const handleBudgetSelect = (option: { value: number, label: string }) => {
         setSelectedOption(option);
@@ -101,6 +118,7 @@ const Index = () => {
             </section>
 
             <Footer />
+            <MobileNavBar />
         </div>
     );
 };

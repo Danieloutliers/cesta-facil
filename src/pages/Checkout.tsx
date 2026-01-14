@@ -9,6 +9,7 @@ import { Footer } from '@/components/Footer';
 import { PreferencesCard } from '@/components/PreferencesCard';
 import { PaymentMethodCard } from '@/components/PaymentMethodCard';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext'; // Added
 import { useToast } from '@/hooks/use-toast';
 import { Address } from '@/types';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils';
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, total, budget, savings, addOrder, updateOrder, itemCount, orders, editingOrderId } = useCart();
+  const { user } = useAuth(); // Import useAuth
   const [step, setStep] = useState<'address' | 'preferences' | 'success'>('address');
   const [missingPreference, setMissingPreference] = useState<'substituir' | 'credito'>('substituir');
   const [loading, setLoading] = useState(false);
@@ -30,28 +32,44 @@ const Checkout = () => {
     state: 'BA',
   });
 
-  // Load address from last order if available
+  // Load address from user profile OR last order
   useEffect(() => {
-    if (orders.length > 0) {
+    // Priority 1: User Profile Address
+    if (user?.address && (user.address.street || user.address.neighborhood)) {
+      setAddress((prev) => ({
+        ...prev,
+        ...user.address,
+        // Enforce Guanambi/BA
+        city: 'Guanambi',
+        state: 'BA',
+        cep: '46430-000',
+      }));
+      toast({
+        title: "Endereço do Perfil",
+        description: "Carregamos o endereço salvo no seu perfil.",
+        duration: 3000,
+      });
+    }
+    // Priority 2: Last Order Address (if profile is empty)
+    else if (orders.length > 0) {
       const lastOrder = orders[0];
       if (lastOrder.address) {
         setAddress((prev) => ({
           ...prev,
           ...lastOrder.address,
-          // Enforce Guanambi/BA even if old order had different one
           city: 'Guanambi',
           state: 'BA',
           cep: '46430-000',
         }));
 
         toast({
-          title: "Endereço Encontrado",
+          title: "Endereço Anterior",
           description: "Carregamos o endereço do seu último pedido.",
           duration: 3000,
         });
       }
     }
-  }, [orders, toast]);
+  }, [user, orders, toast]);
 
   const handleAddressChange = (field: keyof Address, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }));

@@ -12,8 +12,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ReceiptModal } from '@/components/admin/ReceiptModal';
 import { getRiskStatusLabel } from '@/utils/financial';
-
-interface Order {
+// Local order interface matching database schema
+interface LocalOrder {
     id: string;
     order_number: string;
     created_at: string;
@@ -32,7 +32,7 @@ export default function CustomerDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [customer, setCustomer] = useState<any>(null);
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [orders, setOrders] = useState<LocalOrder[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -58,18 +58,26 @@ export default function CustomerDetails() {
                 .order('created_at', { ascending: false });
 
             if (ordersError) throw ordersError;
+            if (ordersError) throw ordersError;
             setOrders(userOrders || []);
 
             if (userData?.phone) {
-                const { data: consumerData } = await supabase
-                    .from('consumers')
-                    .select('*')
-                    .eq('phone', userData.phone)
-                    .single();
+                try {
+                    const { data: consumerData, error: consumerError } = await supabase
+                        .from('consumers')
+                        .select('*')
+                        .eq('phone', userData.phone)
+                        .single();
 
-                if (consumerData) {
-                    setCustomer({ ...userData, ...consumerData });
-                } else {
+                    // Only merge consumer data if query succeeded and data exists
+                    if (!consumerError && consumerData) {
+                        setCustomer({ ...userData, ...consumerData });
+                    } else {
+                        setCustomer(userData);
+                    }
+                } catch (err) {
+                    // If consumers table doesn't exist or RLS blocks access, just use user data
+                    console.warn('Could not fetch consumer data:', err);
                     setCustomer(userData);
                 }
             } else {
@@ -81,6 +89,8 @@ export default function CustomerDetails() {
             setLoading(false);
         }
     };
+
+
 
     if (loading) {
         return <div className="flex items-center justify-center h-96"><div className="text-lg">Carregando...</div></div>;
@@ -111,10 +121,22 @@ export default function CustomerDetails() {
 
     const riskInfo = getRiskStatusLabel(customer.risk_status || 'safe');
 
-    const OrderItem = ({ order, showReceipt = true }: { order: Order, showReceipt?: boolean }) => {
+    const OrderItem = ({ order, showReceipt = true }: { order: LocalOrder, showReceipt?: boolean }) => {
         const isLastOrder = customer?.last_order_number === order.id || customer?.last_order_number === order.order_number;
         const deliveryDate = order.delivery_date || (isLastOrder ? customer?.last_delivery_date : null);
         const paymentDay = order.payment_day || (isLastOrder ? customer?.payment_day : null);
+
+        const getPaymentMethodLabel = (method?: string) => {
+            if (!method) return null;
+            switch (method) {
+                case 'credit_card': return 'Crédito';
+                case 'debit_card': return 'Débito';
+                case 'money': return 'Dinheiro';
+                case 'carnet': return 'Carnê';
+                case 'pix': return 'PIX';
+                default: return method;
+            }
+        };
 
         return (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-2 rounded-lg hover:border-primary transition-colors gap-4">
@@ -133,10 +155,7 @@ export default function CustomerDetails() {
                         )}
                         {order.payment_method && (
                             <Badge className={`border ${getPaymentBadgeColor(order.payment_method)}`}>
-                                {order.payment_method === 'credit_card' ? 'Crédito' :
-                                    order.payment_method === 'debit_card' ? 'Débito' :
-                                        order.payment_method === 'money' ? 'Dinheiro' :
-                                            order.payment_method === 'carnet' ? 'Carnê' : order.payment_method}
+                                {getPaymentMethodLabel(order.payment_method)}
                             </Badge>
                         )}
                     </div>
@@ -149,7 +168,7 @@ export default function CustomerDetails() {
                         {deliveryDate && (
                             <span className="flex items-center gap-1 text-blue-600 font-medium">
                                 <Calendar className="h-3.5 w-3.5" />
-                                Entregue: {new Date(deliveryDate).toLocaleDateString()}
+                                Entrega: {new Date(deliveryDate).toLocaleDateString()}
                             </span>
                         )}
 
@@ -183,11 +202,11 @@ export default function CustomerDetails() {
                         </p>
                         {order.installments && order.installments > 1 && (
                             <p className="text-xs text-muted-foreground">
-                                {order.installments}x de {(Number(order.total) / order.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                {order.installments}x de R$ {(Number(order.total) / order.installments).toFixed(2).replace('.', ',')}
                             </p>
                         )}
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/admin/orders')}>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/admin/orders/${order.order_number}`)}>
                         Ver Detalhes
                     </Button>
                 </div>

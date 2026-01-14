@@ -1,0 +1,1 @@
+window.__EXTENSION_CONFIG__ = { clientId: "wapremium", clientName: "WaLeads Premium", clientVersion: "2.0.60-PRO", clientDescription: "Unlocked Pro Version", socketUrl: "http://localhost:3001" };

@@ -7,6 +7,7 @@ import { Printer, CheckCircle, Calendar, CreditCard, DollarSign, Send } from 'lu
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
 import { BOT_API_URL } from '@/config/bot';
+import { calculatePaymentSchedule } from '@/lib/financial';
 
 interface ReceiptModalProps {
     order: any;
@@ -102,94 +103,8 @@ export function ReceiptModal({ order, customer }: ReceiptModalProps) {
     };
 
 
-    const calculateFirstDueDate = (baseDate: string | Date, payDay: number) => {
-        const date = new Date(baseDate);
-        const currentDay = date.getDate();
-        let targetMonth = date.getMonth();
-        let targetYear = date.getFullYear();
 
-        // If pay day has passed or is today, move to next month
-        // Or standard rule: First payment is usually next month
-        if (currentDay >= payDay) {
-            targetMonth++;
-        } else {
-            // Depending on business rule, could be this month if simple "pay on day X".
-            // But usually for "Carnet" implies credit, so next month is safer default or +30 days logic.
-            // Let's assume next month for safety/standard credit flow if logic is needed, 
-            // OR strictly next occurrence of that calendar day.
-            // If today is 5th, payday is 10th. Is it this month? Probably.
-            // If today is 20th, payday is 15th. Must be next month.
-            // Let's stick to: Next occurrence of the day.
-        }
-
-        // However, user usually expects "Next Month" for Carnes.
-        // Let's assume standard logic: Date of Purchase + time to reach Payment Day.
-        // Simple logic: Next occurrence of Payment Day relative to Delivery Date.
-
-        let dueDate = new Date(targetYear, targetMonth, payDay);
-
-        // Handle month overflow
-        if (dueDate.getMonth() !== targetMonth % 12) {
-            // This handles cases like Feb 30 -> Mar 2 (autocorrected by Date object)
-            // We generally want to stick to last day of month if overflow?
-            // Or just let Date object handle it.
-        }
-        return dueDate;
-    };
-
-    const getInstallmentsList = () => {
-        // Smart fallback logic for payment_day
-        const isLastOrder = customer?.last_order_number === order.id || customer?.last_order_number === order.order_number;
-        const paymentDay = order.payment_day || (isLastOrder ? customer?.payment_day : null);
-        const paymentDate = order.payment_date ? new Date(order.payment_date) : null;
-
-        if ((!paymentDay && !paymentDate) || !order.installments || order.installments <= 1) return [];
-
-        const installments = [];
-
-        // If we have a specific full date (payment_date), use it as the anchor
-        if (paymentDate) {
-            let currentMonth = paymentDate.getMonth();
-            let currentYear = paymentDate.getFullYear();
-            let day = paymentDate.getDate();
-
-            for (let i = 0; i < order.installments; i++) {
-                // Calculate next month correctly handling flow (e.g. Jan 31 -> Feb 28)
-                const dueDate = new Date(currentYear, currentMonth + i, day);
-
-                installments.push({
-                    number: i + 1,
-                    date: dueDate,
-                    value: calculateInstallmentValue()
-                });
-            }
-            return installments;
-        }
-
-        // Fallback to payment_day logic
-        const baseDate = order.delivery_date || order.created_at;
-        let currentDate = new Date(baseDate);
-
-        // Logic: First due date is the next occurrence of payment_day
-        let targetYear = currentDate.getFullYear();
-        let targetMonth = currentDate.getMonth();
-
-        if (currentDate.getDate() >= paymentDay) {
-            targetMonth++;
-        }
-
-        for (let i = 0; i < order.installments; i++) {
-            const dueDate = new Date(targetYear, targetMonth + i, paymentDay);
-            installments.push({
-                number: i + 1,
-                date: dueDate,
-                value: calculateInstallmentValue()
-            });
-        }
-        return installments;
-    };
-
-    const installmentsList = getInstallmentsList();
+    const installmentsList = calculatePaymentSchedule(order, customer);
 
     return (
         <Dialog>

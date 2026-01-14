@@ -10,6 +10,7 @@ import { CartPanel } from '@/components/CartPanel';
 import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
 import { useProducts, useCategories, useSubcategories, seedDatabase } from '@/hooks/useData';
+import { MobileNavBar } from '@/components/MobileNavBar'; // Import added
 
 const MontarCesta = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -201,6 +202,7 @@ const MontarCesta = () => {
       </div>
 
       <CartPanel />
+      <MobileNavBar />
     </div>
   );
 };

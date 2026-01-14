@@ -90,6 +90,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         missingItemPreference: row.missing_item_preference as 'substituir' | 'credito',
         createdAt: row.created_at,
         estimatedDelivery: row.estimated_delivery,
+        paymentMethod: row.payment_method,
+        installments: row.installments,
+        paymentDay: row.payment_day,
+        paymentDate: row.payment_date,
       }));
 
       setOrders(transformedOrders);

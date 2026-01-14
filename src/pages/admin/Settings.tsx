@@ -18,6 +18,7 @@ interface SystemSettings {
         end: string;
     };
     isOpen: boolean;
+    profitMargin: number;
 }
 
 export default function Settings() {
@@ -29,7 +30,8 @@ export default function Settings() {
             start: '08:00',
             end: '18:00'
         },
-        isOpen: true
+        isOpen: true,
+        profitMargin: 30 // Default 30%
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -58,7 +60,8 @@ export default function Settings() {
                     deliveryRadius: settingsObj.deliveryRadius || 10,
                     estimatedDeliveryTime: settingsObj.estimatedDeliveryTime || 60,
                     workingHours: settingsObj.workingHours || { start: '08:00', end: '18:00' },
-                    isOpen: settingsObj.isOpen ?? true
+                    isOpen: settingsObj.isOpen ?? true,
+                    profitMargin: settingsObj.profitMargin || 30
                 });
             }
         } catch (error) {
@@ -77,7 +80,8 @@ export default function Settings() {
                 { key: 'deliveryRadius', value: settings.deliveryRadius },
                 { key: 'estimatedDeliveryTime', value: settings.estimatedDeliveryTime },
                 { key: 'workingHours', value: settings.workingHours },
-                { key: 'isOpen', value: settings.isOpen }
+                { key: 'isOpen', value: settings.isOpen },
+                { key: 'profitMargin', value: settings.profitMargin }
             ];
 
             for (const setting of settingsArray) {
@@ -166,56 +170,93 @@ export default function Settings() {
                             </div>
                         </div>
                     </div>
+                </CardContent>
+            </Card>
 
-                    <Separator />
-
-                    {/* Delivery Settings */}
+            {/* Financial Settings */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-emerald-600" />
+                        Configurações Financeiras
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <Label>Configurações de Entrega</Label>
+                        <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                            <p className="text-sm">Defina os parâmetros para cálculo de preços e lucros.</p>
                         </div>
 
-                        <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="delivery-fee">Taxa de Entrega (R$)</Label>
-                                <Input
-                                    id="delivery-fee"
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={settings.deliveryFee}
-                                    onChange={(e) => setSettings({ ...settings, deliveryFee: parseFloat(e.target.value) })}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="delivery-radius">Raio de Entrega (km)</Label>
-                                <Input
-                                    id="delivery-radius"
-                                    type="number"
-                                    min="1"
-                                    value={settings.deliveryRadius}
-                                    onChange={(e) => setSettings({ ...settings, deliveryRadius: parseInt(e.target.value) })}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="delivery-time">Tempo Estimado (min)</Label>
-                                <Input
-                                    id="delivery-time"
-                                    type="number"
-                                    min="10"
-                                    value={settings.estimatedDeliveryTime}
-                                    onChange={(e) => setSettings({ ...settings, estimatedDeliveryTime: parseInt(e.target.value) })}
-                                />
+                                <Label htmlFor="profit-margin">Margem de Lucro Padrão (%)</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="profit-margin"
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        className="pl-3 pr-8"
+                                        value={settings.profitMargin}
+                                        onChange={(e) => setSettings({ ...settings, profitMargin: parseFloat(e.target.value) })}
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Valor sugerido ao cadastrar novos produtos.
+                                </p>
                             </div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
+            {/* Delivery Settings */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        Configurações de Entrega
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <div className="space-y-2">
+                            <Label htmlFor="delivery-fee">Taxa de Entrega (R$)</Label>
+                            <Input
+                                id="delivery-fee"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={settings.deliveryFee}
+                                onChange={(e) => setSettings({ ...settings, deliveryFee: parseFloat(e.target.value) })}
+                            />
+                        </div>
 
+                        <div className="space-y-2">
+                            <Label htmlFor="delivery-radius">Raio de Entrega (km)</Label>
+                            <Input
+                                id="delivery-radius"
+                                type="number"
+                                min="1"
+                                value={settings.deliveryRadius}
+                                onChange={(e) => setSettings({ ...settings, deliveryRadius: parseInt(e.target.value) })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="delivery-time">Tempo Estimado (min)</Label>
+                            <Input
+                                id="delivery-time"
+                                type="number"
+                                min="10"
+                                value={settings.estimatedDeliveryTime}
+                                onChange={(e) => setSettings({ ...settings, estimatedDeliveryTime: parseInt(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* WhatsApp Settings Card */}
             <Card>

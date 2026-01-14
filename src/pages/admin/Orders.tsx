@@ -14,7 +14,8 @@ import {
     ArrowRight,
     ShoppingBag,
     MessageCircle,
-    XCircle
+    XCircle,
+    Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { OrderEditDialog } from '@/components/admin/OrderEditDialog';
 import {
     DndContext,
     DragOverlay,
@@ -80,7 +82,7 @@ const statusConfig = {
 
 
 // --- Draggable Card Component ---
-const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOrder, setExpandedOrder }: any) => {
+const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOrder, setExpandedOrder, onEdit }: any) => {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: order.id,
         data: { order }
@@ -100,9 +102,11 @@ const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOr
                         <Badge variant="outline" className="font-mono text-xs">
                             {order.id.slice(-6)}
                         </Badge>
-                        <span className="text-sm font-bold text-green-600">
-                            R$ {order.total.toFixed(2).replace('.', ',')}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-green-600">
+                                R$ {order.total.toFixed(2).replace('.', ',')}
+                            </span>
+                        </div>
                     </div>
 
                     <div className="space-y-1">
@@ -161,6 +165,18 @@ const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOr
                                     {order.address.complement && <p>{order.address.complement}</p>}
                                 </div>
 
+                                {/* Edit Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full h-8 gap-2 cursor-pointer border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={() => onEdit(order)}
+                                >
+                                    <Pencil className="h-3 w-3" />
+                                    Editar Pedido
+                                </Button>
+
                                 {/* Phone Button */}
                                 <Button
                                     variant="outline"
@@ -182,7 +198,7 @@ const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOr
 };
 
 // --- Droppable Column Component ---
-const DroppableColumn = ({ id, status, orders, statsConfig, expandedOrder, setExpandedOrder, updateOrderStatus }: any) => {
+const DroppableColumn = ({ id, status, orders, statsConfig, expandedOrder, setExpandedOrder, updateOrderStatus, onEdit }: any) => {
     const { setNodeRef } = useDroppable({ id });
     const StatusIcon = statsConfig.icon;
 
@@ -208,8 +224,10 @@ const DroppableColumn = ({ id, status, orders, statsConfig, expandedOrder, setEx
                             order={order}
                             statusConfig={statusConfig}
                             updateOrderStatus={updateOrderStatus}
+                            updatedOrderStatus={updateOrderStatus}
                             expandedOrder={expandedOrder}
                             setExpandedOrder={setExpandedOrder}
+                            onEdit={onEdit}
                         />
                     ))}
                     {orders.length === 0 && (
@@ -230,6 +248,7 @@ export default function Orders() {
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [mobileStatusFilter, setMobileStatusFilter] = useState<Order['status'] | 'todos'>('todos');
+    const [editingOrder, setEditingOrder] = useState<Order | null>(null);
     const { toast } = useToast();
 
     const sensors = useSensors(
@@ -362,6 +381,40 @@ export default function Orders() {
                 variant: "destructive"
             });
             loadOrders(); // Revert on error
+        }
+    };
+
+    const handleSaveOrder = async (updatedOrder: Order) => {
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({
+                    items: updatedOrder.items,
+                    total: updatedOrder.total,
+                    status: updatedOrder.status,
+                    payment_method: updatedOrder.paymentMethod,
+                    installments: updatedOrder.installments,
+                    address: updatedOrder.address,
+                    // Map other fields if necessary
+                })
+                .eq('order_number', updatedOrder.id);
+
+            if (error) throw error;
+
+            setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...updatedOrder, user: (o as OrderWithUser).user } : o));
+
+            toast({
+                title: "Pedido atualizado",
+                description: "As alterações foram salvas com sucesso.",
+                className: "bg-green-50 border-green-200 text-green-900"
+            });
+        } catch (error) {
+            console.error('Error updating order:', error);
+            toast({
+                title: "Erro ao salvar",
+                description: "Não foi possível salvar as alterações.",
+                variant: "destructive"
+            });
         }
     };
 
@@ -549,9 +602,19 @@ export default function Orders() {
                                                 {config.label}
                                             </Badge>
                                         </div>
-                                        <span className="text-base font-bold text-green-600">
-                                            R$ {order.total.toFixed(2).replace('.', ',')}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-base font-bold text-green-600">
+                                                R$ {order.total.toFixed(2).replace('.', ',')}
+                                            </span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 -mr-2"
+                                                onClick={() => setEditingOrder(order)}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-1">
@@ -637,16 +700,27 @@ export default function Orders() {
                                                     <p>{order.address.neighborhood}, {order.address.city}</p>
                                                 </div>
 
-                                                {/* WhatsApp Button */}
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="w-full h-10 gap-2 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
-                                                    onClick={() => window.open(`https://wa.me/55${order.user.phone}`, '_blank')}
-                                                >
-                                                    <MessageCircle className="h-4 w-4" />
-                                                    Contatar Cliente
-                                                </Button>
+                                                {/* Whatsapp Button */}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full h-10 gap-2 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                                                        onClick={() => window.open(`https://wa.me/55${order.user.phone}`, '_blank')}
+                                                    >
+                                                        <MessageCircle className="h-4 w-4" />
+                                                        WhatsApp
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full h-10 gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                                        onClick={() => setEditingOrder(order)}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                        Editar
+                                                    </Button>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -673,6 +747,7 @@ export default function Orders() {
                                     expandedOrder={expandedOrder}
                                     setExpandedOrder={setExpandedOrder}
                                     updateOrderStatus={updateOrderStatus}
+                                    onEdit={setEditingOrder}
                                 />
                             );
                         })}
@@ -702,6 +777,13 @@ export default function Orders() {
                     ) : null}
                 </DragOverlay>
             </DndContext>
+
+            <OrderEditDialog
+                open={!!editingOrder}
+                onOpenChange={(open) => !open && setEditingOrder(null)}
+                order={editingOrder}
+                onSave={handleSaveOrder}
+            />
         </div>
     );
 }

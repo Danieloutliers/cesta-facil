@@ -10,7 +10,7 @@ import { Notifications } from '@/components/Notifications';
 
 export function Header() {
   const { itemCount } = useCart();
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -18,7 +18,7 @@ export function Header() {
     { href: '/', label: 'Início', icon: Home },
     { href: '/montar-cesta', label: 'Montar Cesta', icon: ShoppingCart },
     { href: '/historico', label: 'Meus Pedidos', icon: History },
-    { href: '/admin', label: 'Admin', icon: Shield },
+    ...(isAdmin ? [{ href: '/admin', label: 'Admin', icon: Shield }] : []),
   ];
 
   const handleLogout = () => {
@@ -116,7 +116,7 @@ export function Header() {
 
             {/* User Avatar */}
             {user ? (
-              <Link to="/admin/settings">
+              <Link to={isAdmin ? "/admin/settings" : "/perfil"}>
                 <Avatar className="h-8 w-8 border-2 border-primary-foreground/20">
                   <AvatarFallback className="bg-primary-foreground/10 text-primary-foreground text-xs">
                     {user.name ? user.name.substring(0, 2).toUpperCase() : <User className="h-4 w-4" />}

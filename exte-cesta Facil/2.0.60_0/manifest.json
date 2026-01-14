@@ -1,0 +1,24 @@
+{
+   "author": "contato@roote.com.br",
+   "background": {
+      "service_worker": "background.js"
+   },
+   "content_scripts": [ {
+      "js": [ "content.js", "assets/socket.js" ],
+      "matches": [ "https://web.whatsapp.com/*" ]
+   } ],
+   "content_security_policy": {
+      "extension_pages": "script-src 'self'; object-src 'self'"
+   },
+   "description": "WaLeads",
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmma+CU7WBz+fSxJibpM8ygoNRapHofJv6fTzXD8vQQm/zSdNvnUlWW0LGtdYlMcY7OTQACn7Cd0BytcvLUgN+IUjl7rUp7OAu5TrDHRsK0gPpxdFNUQfl5U37ggeA0my2Y7oqbL2rguMhOp3miff0xfLyyAY69ZCR5fkE1iQ9FeaiPla5wTZl1W+gatd7wN3BkPzHE/6acH7sfvEZYSuOKNUp5GnlbIGX4mMl/lwV/e50V50epqOCyayXI5yAxf/fjmUVMA5cl7/pvX5qziWcEmQBQ1wEKCRLA7uQpBQ6drg/APOFrQUaQ3pJy6nApJTyDoH/W7P4qAJX9BJoaaT2wIDAQAB",
+   "manifest_version": 3,
+   "name": "WaLeads",
+   "permissions": [ "storage", "tabs" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "2.0.60",
+   "web_accessible_resources": [ {
+      "matches": [ "https://web.whatsapp.com/*" ],
+      "resources": [ "bundle.js", "assets/*.js", "assets/*.css" ]
+   } ]
+}

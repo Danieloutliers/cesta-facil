@@ -9,20 +9,16 @@ export function MobileNavBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { itemCount } = useCart();
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  if (!user) return null;
 
   const navItems = [
     {
       href: '/',
       label: 'Início',
       icon: Home,
-      isCenter: false
-    },
-    {
-      href: '/historico',
-      label: 'Pedidos',
-      icon: History,
       isCenter: false
     },
     {
@@ -33,18 +29,18 @@ export function MobileNavBar() {
       badge: itemCount > 0 ? itemCount : undefined
     },
     {
-      href: user ? '/historico' : '/login',
-      label: 'Conta',
-      icon: User,
+      href: '/historico',
+      label: 'Pedidos',
+      icon: History,
       isCenter: false
     },
-    {
+    ...(isAdmin ? [{
       href: '#menu',
       label: 'Menu',
       icon: Menu,
       isCenter: false,
       isMenu: true
-    },
+    }] : []),
   ];
 
   const menuOptions = [
@@ -75,20 +71,20 @@ export function MobileNavBar() {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className="relative flex flex-col items-center -mt-6 group"
+                  className="relative flex flex-col items-center -mt-5 group"
                 >
                   {/* Floating Action Button Central */}
                   <div className={cn(
-                    "relative flex items-center justify-center w-14 h-14 rounded-full shadow-2xl transition-all duration-300 transform group-hover:scale-110 group-active:scale-95",
+                    "relative flex items-center justify-center w-12 h-12 rounded-full shadow-2xl transition-all duration-300 transform group-hover:scale-110 group-active:scale-95",
                     isActive
                       ? "bg-gradient-to-br from-primary via-primary to-emerald-600 shadow-primary"
                       : "bg-gradient-to-br from-primary/90 to-emerald-500/90"
                   )}>
-                    <Icon className="h-6 w-6 text-primary-foreground" />
+                    <Icon className="h-5 w-5 text-primary-foreground" />
 
                     {/* Badge de Contador */}
                     {item.badge && (
-                      <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-warning text-warning-foreground text-xs font-bold shadow-lg animate-pulse">
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-warning-foreground text-[10px] font-bold shadow-lg animate-pulse">
                         {item.badge}
                       </span>
                     )}
@@ -101,7 +97,7 @@ export function MobileNavBar() {
 
                   {/* Label */}
                   <span className={cn(
-                    "text-[10px] font-medium mt-1 transition-colors",
+                    "text-[9px] font-medium mt-1 transition-colors",
                     isActive ? "text-primary" : "text-muted-foreground"
                   )}>
                     {item.label}
@@ -119,7 +115,7 @@ export function MobileNavBar() {
                   className="flex flex-col items-center justify-center min-w-[50px] py-1 group"
                 >
                   <div className={cn(
-                    "relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 group-hover:scale-110 group-active:scale-95",
+                    "relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 group-hover:scale-110 group-active:scale-95",
                     isMenuOpen
                       ? "bg-primary/10"
                       : "hover:bg-muted/50"
@@ -135,7 +131,7 @@ export function MobileNavBar() {
                   </div>
 
                   <span className={cn(
-                    "text-[10px] font-medium transition-colors",
+                    "text-[9px] font-medium transition-colors",
                     isMenuOpen ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                   )}>
                     {item.label}
@@ -151,7 +147,7 @@ export function MobileNavBar() {
                 className="flex flex-col items-center justify-center min-w-[50px] py-1 group"
               >
                 <div className={cn(
-                  "relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 group-hover:scale-110 group-active:scale-95",
+                  "relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 group-hover:scale-110 group-active:scale-95",
                   isActive
                     ? "bg-primary/10"
                     : "hover:bg-muted/50"
@@ -168,7 +164,7 @@ export function MobileNavBar() {
                 </div>
 
                 <span className={cn(
-                  "text-[10px] font-medium transition-colors",
+                  "text-[9px] font-medium transition-colors",
                   isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                 )}>
                   {item.label}

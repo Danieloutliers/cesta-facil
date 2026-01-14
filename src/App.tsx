@@ -7,6 +7,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
 import { Suspense, lazy } from "react";
 import { Loading } from "@/components/Loading";
 
@@ -15,6 +16,7 @@ const Index = lazy(() => import("./pages/Index"));
 const MontarCesta = lazy(() => import("./pages/MontarCesta"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const Historico = lazy(() => import("./pages/Historico"));
+const Profile = lazy(() => import("./pages/Profile")); // Added
 const Login = lazy(() => import("./pages/Login"));
 const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -23,6 +25,7 @@ const WhatsappConnect = lazy(() => import('./pages/admin/Whatsapp'));
 const Chat = lazy(() => import('./pages/admin/Chat'));
 const Customers = lazy(() => import("./pages/admin/Customers"));
 const CustomerDetails = lazy(() => import("./pages/admin/CustomerDetails"));
+const OrderDetail = lazy(() => import("./pages/admin/OrderDetail"));
 const BudgetOptions = lazy(() => import("./pages/admin/BudgetOptions"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Categories = lazy(() => import("./pages/admin/Categories"));
@@ -55,10 +58,11 @@ const App = () => (
                   <Route path="/montar-cesta" element={<MontarCesta />} />
                   <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                   <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
+                  <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="/admin" element={
-                    <ProtectedRoute>
+                    <AdminProtectedRoute>
                       <AdminLayout />
-                    </ProtectedRoute>
+                    </AdminProtectedRoute>
                   }>
                     <Route index element={<Dashboard />} />
                     <Route path="orders" element={<Orders />} />
@@ -68,6 +72,7 @@ const App = () => (
                     <Route path="banners" element={<Banners />} />
                     <Route path="customers" element={<Customers />} />
                     <Route path="customers/:id" element={<CustomerDetails />} />
+                    <Route path="orders/:orderId" element={<OrderDetail />} />
                     <Route path="financial" element={<Financial />} />
                     <Route path="whatsapp" element={<WhatsappConnect />} />
                     <Route path="chat" element={<Chat />} />

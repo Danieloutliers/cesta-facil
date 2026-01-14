@@ -1,0 +1,50 @@
+{
+    "manifest_version": 3,
+    "name": "Cesta Fácil 2.0 (Premium CRM)",
+    "version": "2.0.0",
+    "description": "Premium CRM integration for WhatsApp Web",
+    "permissions": [
+        "storage",
+        "tabs",
+        "scripting"
+    ],
+    "host_permissions": [
+        "https://web.whatsapp.com/*"
+    ],
+    "action": {
+        "default_title": "Cesta Fácil CRM"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://web.whatsapp.com/*"
+            ],
+            "js": [
+                "modules/globals.js",
+                "modules/ui.js",
+                "modules/crm.js",
+                "modules/flow.js",
+                "modules/kanban.js",
+                "content.js"
+            ],
+            "css": [
+                "styles.css"
+            ],
+            "run_at": "document_end"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "assets/*",
+                "modules/*"
+            ],
+            "matches": [
+                "https://web.whatsapp.com/*"
+            ]
+        }
+    ]
+}

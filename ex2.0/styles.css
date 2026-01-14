@@ -1,0 +1,338 @@
+/* Cesta Fácil 2.0 - Premium Design System */
+
+:root {
+    --cf-primary: #10B981;
+    --cf-primary-dark: #059669;
+    --cf-bg-glass: rgba(17, 24, 39, 0.75);
+    --cf-border: rgba(255, 255, 255, 0.1);
+    --cf-text-primary: #FFFFFF;
+    --cf-text-secondary: #9CA3AF;
+    --cf-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Glassmorphism Sidebar */
+.cf-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 350px;
+    height: 100vh;
+    background: var(--cf-bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-left: 1px solid var(--cf-border);
+    box-shadow: var(--cf-shadow);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease-in-out;
+    color: var(--cf-text-primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.cf-sidebar.collapsed {
+    transform: translateX(350px);
+}
+
+/* Header */
+.cf-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--cf-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cf-title {
+    font-size: 18px;
+    font-weight: 600;
+    background: linear-gradient(to right, #10B981, #3B82F6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* CRM Content */
+.cf-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* CRM Cards */
+.cf-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 15px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.cf-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.cf-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cf-text-secondary);
+    margin-bottom: 8px;
+    display: block;
+}
+
+/* Inputs */
+.cf-input,
+.cf-textarea {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--cf-border);
+    border-radius: 8px;
+    padding: 10px;
+    color: white;
+    margin-bottom: 10px;
+    font-family: inherit;
+}
+
+.cf-input:focus,
+.cf-textarea:focus {
+    outline: none;
+    border-color: var(--cf-primary);
+}
+
+.cf-btn {
+    background: var(--cf-primary);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+}
+
+.cf-btn:hover {
+    background: var(--cf-primary-dark);
+}
+
+/* Toggle Button on WA Interface */
+.cf-toggle-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: var(--cf-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.cf-toggle-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Pipeline Status Badge */
+.cf-status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(16, 185, 129, 0.2);
+    color: #10B981;
+}
+
+/* Tabs */
+.cf-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-tab {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--cf-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.cf-tab:hover {
+    color: var(--cf-text-primary);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cf-tab.active {
+    color: var(--cf-primary);
+    border-bottom-color: var(--cf-primary);
+}
+
+.cf-tab-content {
+    display: none;
+}
+
+.cf-tab-content.active {
+    display: block;
+}
+
+/* Flow Editor */
+.cf-flow-item {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--cf-primary);
+}
+
+.cf-flow-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.cf-flow-name {
+    font-weight: 600;
+    color: var(--cf-text-primary);
+}
+
+/* Kanban Overlay */
+.cf-kanban-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 10, 15, 0.9);
+    /* Darker backdrop */
+    backdrop-filter: blur(8px);
+    z-index: 10001;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.cf-kanban-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.cf-kanban-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+.cf-btn-icon {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.cf-kanban-board {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    overflow-x: auto;
+    padding-bottom: 20px;
+}
+
+.cf-kanban-column {
+    flex: 1;
+    min-width: 280px;
+    max-width: 350px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--cf-border);
+}
+
+.cf-column-header {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.cf-column-title {
+    font-weight: 600;
+    color: var(--cf-text-primary);
+}
+
+.cf-column-count {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--cf-text-secondary);
+}
+
+.cf-column-content {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    transition: background 0.2s;
+}
+
+.cf-kanban-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: grab;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid transparent;
+}
+
+.cf-kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.cf-kanban-card:active {
+    cursor: grabbing;
+}
+
+.cf-card-name {
+    font-weight: 600;
+    color: var(--cf-text-primary);
+    margin-bottom: 4px;
+}
+
+.cf-card-number {
+    font-size: 11px;
+    color: var(--cf-text-secondary);
+    margin-bottom: 6px;
+}
+
+.cf-card-note {
+    font-size: 12px;
+    color: #cbd5e1;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px;
+    border-radius: 4px;
+}
