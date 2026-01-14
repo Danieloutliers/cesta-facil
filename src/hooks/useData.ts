@@ -138,6 +138,10 @@ export async function createProduct(product: Omit<Product, 'id'>) {
 }
 
 export async function updateProduct(id: string, updates: Partial<Product>) {
+    // 1. Fetch current data for history
+    const { data: current } = await supabase.from('products').select('*').eq('id', id).single();
+
+    // 2. Update
     const { data, error } = await supabase
         .from('products')
         .update(updates)
@@ -146,6 +150,22 @@ export async function updateProduct(id: string, updates: Partial<Product>) {
         .single();
 
     if (error) throw error;
+
+    // 3. Insert History if price or cost changed
+    if (current && (
+        (updates.price !== undefined && updates.price !== current.price) ||
+        (updates.cost_price !== undefined && updates.cost_price !== current.cost_price)
+    )) {
+        const { error: historyError } = await supabase.from('product_price_history').insert({
+            product_id: id,
+            old_price: current.price,
+            new_price: updates.price ?? current.price,
+            old_cost: current.cost_price || 0,
+            new_cost: updates.cost_price ?? (current.cost_price || 0)
+        });
+        if (historyError) console.error('Error saving price history:', historyError);
+    }
+
     return data;
 }
 

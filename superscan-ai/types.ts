@@ -10,6 +10,7 @@ export interface Product {
   created_at?: string;
   isEnhanced?: boolean; // UI only
   subcategory_id?: string;
+  cost_price?: number; // Preço de custo para cálculo de margem
 }
 
 export interface SubCategory {
@@ -21,6 +22,7 @@ export interface SubCategory {
 export interface ScannedData {
   name: string;
   price: number;
+  cost_price?: number; // Adicionado para sugestão inicial
   category: string;
   subcategory_id?: string;
   description: string;

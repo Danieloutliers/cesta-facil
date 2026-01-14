@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Sparkles, CheckCircle, XCircle, Edit2, Loader2, Plus, Check, Upload, Database, Home, WifiOff, RefreshCw, ChevronDown, ChevronUp, Trash2, Pencil } from 'lucide-react';
+import { Camera, Sparkles, CheckCircle, XCircle, Edit2, Loader2, Plus, Check, Upload, Database, Home, WifiOff, RefreshCw, ChevronDown, ChevronUp, Trash2, Pencil, Settings } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import imageCompression from 'browser-image-compression';
 import { AppView, Product, ScannedData } from './types';
@@ -28,6 +28,10 @@ export default function App() {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [subcategories, setSubcategories] = useState<{ id: string, label: string, category_id: string }[]>([]);
   const [categories, setCategories] = useState<{ id: string, label: string }[]>([]);
+  const [defaultMargin, setDefaultMargin] = useState<number>(0); // Default margin state
+  const [showSettings, setShowSettings] = useState(false);
+  const [customGeminiKey, setCustomGeminiKey] = useState(localStorage.getItem('custom_gemini_key') || '');
+  const [customGeminiKey2, setCustomGeminiKey2] = useState(localStorage.getItem('custom_gemini_key_2') || '');
 
   // States for animation simulation
   const [processingStep, setProcessingStep] = useState<string>('');
@@ -40,6 +44,13 @@ export default function App() {
     const fetchCats = async () => {
       const { data } = await supabase.from('categories').select('*');
       if (data) setCategories(data);
+
+      // Fetch default margin
+      const { data: settingsData, error } = await supabase.from('settings').select('value').eq('key', 'profitMargin').single();
+      if (settingsData?.value) {
+        setDefaultMargin(Number(settingsData.value));
+      }
+      if (error) console.error('Erro ao buscar margem padrão:', error);
     };
     fetchCats();
 
@@ -129,10 +140,22 @@ export default function App() {
     setProcessingStep('Identificando produto...');
 
     // Real Gemini Call
-    const data = await analyzeProductImage(currentImage, categories, subcategories);
+    const data = await analyzeProductImage(currentImage, categories, subcategories, [customGeminiKey, customGeminiKey2]);
 
     setProcessingStep('Melhorando qualidade da imagem...');
     await new Promise(r => setTimeout(r, 1000)); // Fake processing time for "image enhancement"
+
+    // Init cost_price based on default settings margin
+    if (data) {
+      if (defaultMargin > 0) {
+        // Se tiver margem configurada (ex: 30%), o custo é menor que o preço
+        // Preço = Custo * (1 + Margem/100)  =>  Custo = Preço / (1 + Margem/100)
+        data.cost_price = parseFloat((data.price / (1 + defaultMargin / 100)).toFixed(2));
+      } else {
+        // Se margem for 0 ou não definida, assume custo = preço
+        data.cost_price = data.price;
+      }
+    }
 
     setScanResult(data);
     setIsProcessing(false);
@@ -298,6 +321,7 @@ export default function App() {
         image: imageUrl,
         unit: scanResult.unit || 'un',
         subcategory_id: scanResult.subcategory_id,
+        cost_price: scanResult.cost_price, // Save cost price
       };
 
       let error;
@@ -396,9 +420,12 @@ export default function App() {
               {pendingCount}
             </button>
           )}
-          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold">
-            JD
-          </div>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors"
+          >
+            <Settings size={18} />
+          </button>
         </div>
       </header>
 
@@ -792,19 +819,87 @@ export default function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase">Preço (R$)</label>
-                <div className="flex items-center gap-2">
+            <div className="space-y-4 border-b border-gray-100 pb-4 mb-4">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Detalhamento Financeiro</label>
+
+              <div className="grid grid-cols-3 gap-3">
+                {/* 1. Preço de Custo */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Custo (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={scanResult?.cost_price || ''}
+                    onChange={(e) => {
+                      const newCost = parseFloat(e.target.value);
+                      setScanResult(prev => {
+                        if (!prev) return null;
+                        // Se mudar custo, mantemos a margem e atualizamos o preço? 
+                        // Ou mantemos o preço e atualizamos a margem? 
+                        // Geralmente em precificação, se custo sobe, preço sobe para manter margem.
+                        // Mas aqui o scan já deu o preço. Vamos assumir: Custo altera MARGEM (Preço fixo).
+                        // NÃO, o usuário pediu para editar.
+                        // "aparcela Preço Custo (R$) Margem e Preco de Venda"
+                        // Vamos fazer: 
+                        // Edit Custo -> Recalcula Margem (Preço Fixo)
+                        return { ...prev, cost_price: newCost };
+                      });
+                    }}
+                    className="w-full text-lg font-bold text-gray-600 border border-gray-200 rounded-lg px-2 py-1 focus:border-green-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* 2. Margem (%) - Calculado */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Margem (%)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      placeholder="0"
+                      value={(() => {
+                        if (!scanResult?.price || !scanResult?.cost_price) return 0;
+                        return (((scanResult.price - scanResult.cost_price) / scanResult.cost_price) * 100).toFixed(1);
+                      })()}
+                      onChange={(e) => {
+                        const newMargin = parseFloat(e.target.value);
+                        setScanResult(prev => {
+                          if (!prev || !prev.cost_price) return prev;
+                          // Edit Margem -> Recalcula Preço (Mantém Custo)
+                          // Price = Cost * (1 + Margin/100)
+                          const newPrice = prev.cost_price * (1 + newMargin / 100);
+                          return { ...prev, price: parseFloat(newPrice.toFixed(2)) };
+                        });
+                      }}
+                      className="w-full text-lg font-bold text-blue-600 border border-blue-100 bg-blue-50 rounded-lg px-2 py-1 focus:border-blue-500 focus:outline-none pr-6"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400 font-bold">%</span>
+                  </div>
+                </div>
+
+                {/* 3. Preço de Venda */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Venda (R$)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={scanResult?.price}
-                    onChange={(e) => setScanResult(prev => prev ? { ...prev, price: parseFloat(e.target.value) } : null)}
-                    className="w-full text-2xl font-bold text-green-700 border-b border-dashed border-gray-300 focus:border-green-500 focus:outline-none py-1 bg-transparent"
+                    onChange={(e) => {
+                      const newPrice = parseFloat(e.target.value);
+                      setScanResult(prev => {
+                        if (!prev) return null;
+                        // Edit Preço -> Recalcula Margem (Implicitamente, pois margem é derivada)
+                        return { ...prev, price: newPrice };
+                      });
+                    }}
+                    className="w-full text-lg font-bold text-green-700 border border-green-200 bg-green-50 rounded-lg px-2 py-1 focus:border-green-500 focus:outline-none"
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-400 uppercase">Unidade</label>
                 <input
@@ -812,7 +907,7 @@ export default function App() {
                   placeholder="ex: 1kg, un"
                   value={scanResult?.unit || 'un'}
                   onChange={(e) => setScanResult(prev => prev ? { ...prev, unit: e.target.value } : null)}
-                  className="w-full text-lg text-gray-700 border-b border-dashed border-gray-300 focus:border-green-500 focus:outline-none py-1 bg-transparent"
+                  className="w-full text-lg text-gray-700 border border-gray-300 rounded-lg px-3 py-2 focus:border-green-500 focus:outline-none bg-white"
                 />
               </div>
               <div className="space-y-1">
@@ -963,20 +1058,76 @@ export default function App() {
               <button
                 onClick={() => {
                   setShowDuplicateDialog(false);
-                  saveProduct('add');
-                }}
-                className="w-full py-3 px-4 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
-              >
-                ➕ Adicionar Como Novo Produto
-              </button>
-              <button
-                onClick={() => {
-                  setShowDuplicateDialog(false);
                   setDuplicateProduct(null);
                 }}
-                className="w-full py-3 px-4 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+                className="w-full py-3 px-4 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
               >
-                ❌ Cancelar
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Dialog */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-lg">Configurações</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <XCircle size={24} className="text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Chave API Principal (Opcional)</label>
+                <input
+                  type="text"
+                  value={customGeminiKey}
+                  onChange={(e) => {
+                    setCustomGeminiKey(e.target.value);
+                    localStorage.setItem('custom_gemini_key', e.target.value);
+                  }}
+                  placeholder="Cole sua chave principal aqui"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Chave API de Backup (Opcional)</label>
+                <input
+                  type="text"
+                  value={customGeminiKey2}
+                  onChange={(e) => {
+                    setCustomGeminiKey2(e.target.value);
+                    localStorage.setItem('custom_gemini_key_2', e.target.value);
+                  }}
+                  placeholder="Cole uma chave secundária (redundância)"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
+                />
+              </div>
+
+              <p className="text-xs text-gray-500 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                <strong>Como funciona:</strong> O sistema tentará usar a Chave Principal.
+                Se o limite for atingido, ele tentará automaticamente a Chave de Backup.
+                Se ambas falharem ou não existirem, usará a chave padrão do sistema.
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setShowSettings(false);
+                  toast.success('Configurações salvas!');
+                }}
+                className="w-full py-2.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+              >
+                Salvar e Fechar
               </button>
             </div>
           </div>
@@ -984,46 +1135,50 @@ export default function App() {
       )}
 
       {/* Statistics Modal */}
-      {showStatistics && (
-        <Statistics
-          products={products}
-          onClose={() => setShowStatistics(false)}
-        />
-      )}
+      {
+        showStatistics && (
+          <Statistics
+            products={products}
+            onClose={() => setShowStatistics(false)}
+          />
+        )
+      }
 
       {/* Delete Confirmation Dialog */}
-      {productToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-5 max-w-xs w-full shadow-2xl">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Trash2 size={24} className="text-red-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Deletar Produto</h3>
-              <p className="text-sm text-gray-600 mb-5">
-                Tem certeza que deseja deletar <strong>{productToDelete.name}</strong>?
-                <br />
-                Esta ação não pode ser desfeita.
-              </p>
+      {
+        productToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-5 max-w-xs w-full shadow-2xl">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Trash2 size={24} className="text-red-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Deletar Produto</h3>
+                <p className="text-sm text-gray-600 mb-5">
+                  Tem certeza que deseja deletar <strong>{productToDelete.name}</strong>?
+                  <br />
+                  Esta ação não pode ser desfeita.
+                </p>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setProductToDelete(null)}
-                  className="flex-1 py-2 px-3 rounded-lg border border-gray-300 text-sm text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => deleteProduct(productToDelete.id)}
-                  className="flex-1 py-2 px-3 rounded-lg bg-red-600 text-sm text-white font-semibold hover:bg-red-700 transition-colors"
-                >
-                  Deletar
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setProductToDelete(null)}
+                    className="flex-1 py-2 px-3 rounded-lg border border-gray-300 text-sm text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => deleteProduct(productToDelete.id)}
+                    className="flex-1 py-2 px-3 rounded-lg bg-red-600 text-sm text-white font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Deletar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </main>
+        )
+      }
+    </main >
   );
 }

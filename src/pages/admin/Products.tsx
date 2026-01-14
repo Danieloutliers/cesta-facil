@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +14,8 @@ import {
 import { Plus, Search, Pencil, Trash2, Package } from 'lucide-react';
 import { useProducts, useCategories, createProduct, updateProduct, deleteProduct } from '@/hooks/useData';
 import { ProductFormDialog } from '@/components/ProductFormDialog';
+import { BulkUpdateDialog } from '@/components/admin/BulkUpdateDialog';
+import { supabase } from '@/lib/supabase';
 
 import { Product } from '@/types';
 
@@ -24,6 +26,22 @@ const Products = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
+  const [defaultProfitMargin, setDefaultProfitMargin] = useState(30);
+  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'profitMargin')
+        .single();
+      if (data?.value) {
+        setDefaultProfitMargin(Number(data.value));
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Filter products by search and category
   const filteredProducts = useMemo(() => {
@@ -93,6 +111,7 @@ const Products = () => {
           <TableHead>Nome</TableHead>
           <TableHead className="hidden md:table-cell">Categoria</TableHead>
           <TableHead>Preço</TableHead>
+          <TableHead>Margem</TableHead>
           <TableHead>Unidade</TableHead>
           <TableHead className="text-right">Ações</TableHead>
         </TableRow>
@@ -100,48 +119,62 @@ const Products = () => {
       <TableBody>
         {products.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
               Nenhum produto encontrado.
             </TableCell>
           </TableRow>
         ) : (
-          products.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell>
-                <div className="h-10 w-10 rounded-md overflow-hidden bg-muted">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </TableCell>
-              <TableCell className="font-medium">{product.name}</TableCell>
-              <TableCell className="hidden md:table-cell capitalize">{product.category}</TableCell>
-              <TableCell>R$ {product.price.toFixed(2).replace('.', ',')}</TableCell>
-              <TableCell>{product.unit}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    onClick={() => handleEdit(product)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => handleDelete(product.id, product.name)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))
+          products.map((product) => {
+            const cost = product.cost_price || 0;
+            const margin = cost > 0 ? ((product.price - cost) / cost) * 100 : 0;
+
+            return (
+              <TableRow key={product.id}>
+                <TableCell>
+                  <div className="h-10 w-10 rounded-md overflow-hidden bg-muted">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell className="hidden md:table-cell capitalize">{product.category}</TableCell>
+                <TableCell>R$ {product.price.toFixed(2).replace('.', ',')}</TableCell>
+                <TableCell>
+                  {cost > 0 ? (
+                    <span className={margin < 30 ? "text-red-500 font-medium" : "text-emerald-600 font-medium"}>
+                      {margin.toFixed(0)}%
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell>{product.unit}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      onClick={() => handleEdit(product)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDelete(product.id, product.name)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )
+          })
         )}
       </TableBody>
     </Table>
@@ -155,10 +188,15 @@ const Products = () => {
           <h2 className="text-3xl font-bold tracking-tight">Produtos</h2>
           <p className="text-muted-foreground">Gerencie o catálogo de produtos</p>
         </div>
-        <Button onClick={handleNewProduct}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Produto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setBulkUpdateOpen(true)}>
+            Reajustar Margens
+          </Button>
+          <Button onClick={handleNewProduct}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Produto
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -253,6 +291,13 @@ const Products = () => {
         onOpenChange={setDialogOpen}
         product={editingProduct}
         onSave={handleSave}
+        defaultProfitMargin={defaultProfitMargin}
+      />
+
+      <BulkUpdateDialog
+        open={bulkUpdateOpen}
+        onOpenChange={setBulkUpdateOpen}
+        onSuccess={refetch}
       />
     </div>
   );

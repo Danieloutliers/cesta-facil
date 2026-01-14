@@ -7,12 +7,23 @@ export interface Product {
   unit: string;
   description?: string;
   subcategory_id?: string;
+  cost_price?: number;
 }
 
 export interface SubCategory {
   id: string;
   label: string;
   category_id: string;
+}
+
+export interface PriceHistoryItem {
+  id: string;
+  product_id: string;
+  old_price: number;
+  new_price: number;
+  old_cost: number;
+  new_cost: number;
+  changed_at: string;
 }
 
 export interface CartItem extends Product {
