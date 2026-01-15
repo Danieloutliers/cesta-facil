@@ -1,69 +1,173 @@
-import { Banknote } from 'lucide-react';
+import { Banknote, CreditCard, Wallet, FileText, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { PaymentMethod } from '@/types';
 
-export function PaymentMethodCard() {
+import { calculateInstallmentTotal } from '@/lib/financial';
+
+interface PaymentMethodCardProps {
+    selected: PaymentMethod | undefined;
+    onSelect: (method: PaymentMethod) => void;
+    installments: number;
+    onInstallmentsChange: (value: number) => void;
+    total: number;
+    rates: { rate1to2: number; rate3to5: number };
+}
+
+export function PaymentMethodCard({ selected, onSelect, installments, onInstallmentsChange, total, rates }: PaymentMethodCardProps) {
     return (
-        <div className="relative bg-neutral-900 rounded-2xl p-8 overflow-hidden">
-            {/* Glassmorphism effect - circular blur */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/20 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
+        <div className="bg-card rounded-2xl border border-border p-6 shadow-card">
 
-            {/* Content */}
-            <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20 backdrop-blur-sm">
-                        <Banknote className="h-6 w-6 text-primary-foreground" />
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-white text-lg">Forma de Pagamento</h3>
-                        <p className="text-neutral-400 text-sm">Escolha como prefere pagar</p>
-                    </div>
+            <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
+                    <Banknote className="h-5 w-5 text-primary" />
                 </div>
+                <div>
+                    <h2 className="font-semibold">Forma de Pagamento</h2>
+                    <p className="text-sm text-muted-foreground">Como você prefere pagar?</p>
+                </div>
+            </div>
 
-                {/* Destaque Carnê */}
-                <div className="mb-6 bg-gradient-to-r from-primary/20 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden group hover:border-primary/40 transition-colors">
-                    <div className="absolute top-0 right-0 bg-primary/20 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-wider text-white">
-                        Destaque
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="bg-primary/20 p-3 rounded-lg">
-                            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            {/* Destaque PIX */}
+            <div className={cn(
+                "w-full mb-6 relative overflow-hidden rounded-xl border-2 transition-all duration-300 group",
+                selected === 'pix'
+                    ? "border-primary bg-primary/5 shadow-md"
+                    : "border-border hover:border-primary/50"
+            )}>
+                <button
+                    onClick={() => onSelect('pix')}
+                    className="w-full text-left relative z-10"
+                >
+                    {selected === 'pix' && (
+                        <div className="absolute top-0 right-0 p-2 bg-primary rounded-bl-xl z-20">
+                            <Check className="h-4 w-4 text-primary-foreground" />
+                        </div>
+                    )}
+
+                    <div className="relative p-4 md:p-5 flex items-center gap-4">
+                        <div className={cn(
+                            "h-12 w-12 rounded-lg flex items-center justify-center transition-colors",
+                            selected === 'pix' ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"
+                        )}>
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                         </div>
                         <div>
-                            <h4 className="font-bold text-white text-base">Carnê Digital</h4>
-                            <p className="text-neutral-300 text-xs mt-0.5">Parcele suas compras sem cartão</p>
+                            <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-bold text-base">PIX</h3>
+                                <span className="bg-green-500/10 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-green-500/20">Recomendado</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Pagamento instantâneo com aprovação imediata</p>
                         </div>
                     </div>
+                </button>
+            </div>
+
+            <p className="text-sm font-medium text-muted-foreground mb-3 pl-1">Outras opções:</p>
+
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Dinheiro */}
+                    <button
+                        onClick={() => onSelect('dinheiro')}
+                        className={cn(
+                            "relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-300 text-center",
+                            selected === 'dinheiro'
+                                ? "border-primary bg-secondary shadow-sm"
+                                : "border-border hover:border-primary/50"
+                        )}
+                    >
+                        {selected === 'dinheiro' && (
+                            <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                        )}
+                        <div className="mb-2 text-primary">
+                            <Banknote className="h-6 w-6" />
+                        </div>
+                        <span className="font-semibold text-sm">Dinheiro</span>
+                        <span className="text-xs text-muted-foreground">Na entrega</span>
+                    </button>
+
+                    {/* Cartão */}
+                    <button
+                        onClick={() => onSelect('cartao')}
+                        className={cn(
+                            "relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-300 text-center",
+                            selected === 'cartao'
+                                ? "border-primary bg-secondary shadow-sm"
+                                : "border-border hover:border-primary/50"
+                        )}
+                    >
+                        {selected === 'cartao' && (
+                            <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                        )}
+                        <div className="mb-2 text-primary">
+                            <CreditCard className="h-6 w-6" />
+                        </div>
+                        <span className="font-semibold text-sm">Cartão</span>
+                        <span className="text-xs text-muted-foreground">Crédito/Débito</span>
+                    </button>
+
+                    {/* Carnê Digital */}
+                    <button
+                        onClick={() => onSelect('carne')}
+                        className={cn(
+                            "relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-300 text-center order-last",
+                            selected === 'carne'
+                                ? "border-primary bg-secondary shadow-sm"
+                                : "border-border hover:border-primary/50"
+                        )}
+                    >
+                        {selected === 'carne' && (
+                            <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                        )}
+                        <div className="mb-2 text-primary">
+                            <FileText className="h-6 w-6" />
+                        </div>
+                        <span className="font-semibold text-sm">Carnê Digital</span>
+                        <span className="text-xs text-amber-600 dark:text-amber-500 font-medium">Com acréscimo</span>
+                    </button>
                 </div>
 
-                <p className="text-neutral-300 text-sm mb-4">
-                    Também aceitamos no momento da entrega:
-                </p>
+                {/* Installment Selection for Carne - Shown below grid if selected */}
+                {selected === 'carne' && (
+                    <div className="w-full bg-card rounded-xl border border-border p-4 animate-in slide-in-from-top-2 duration-300">
+                        <p className="text-sm font-medium mb-3 text-muted-foreground">Em quantas vezes deseja parcelar?</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {[1, 2, 3, 4, 5].map((num) => {
+                                const { installmentValue, interestRate } = calculateInstallmentTotal(total, num, rates);
 
-                {/* Payment method pills */}
-                <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white text-xs font-medium">
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        Dinheiro
-                    </span>
-
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white text-xs font-medium">
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                        </svg>
-                        PIX
-                    </span>
-
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white text-xs font-medium">
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                        </svg>
-                        Cartão
-                    </span>
-                </div>
+                                return (
+                                    <button
+                                        key={num}
+                                        onClick={() => onInstallmentsChange(num)}
+                                        className={cn(
+                                            "flex flex-col items-center justify-center p-3 rounded-lg border text-sm transition-all",
+                                            installments === num
+                                                ? "bg-primary/10 border-primary text-primary font-medium ring-1 ring-primary/20"
+                                                : "bg-background border-border hover:border-primary/30 text-muted-foreground"
+                                        )}
+                                    >
+                                        <div className="flex flex-col items-center gap-0.5">
+                                            <span className={cn(
+                                                "text-xs font-medium uppercase tracking-wider",
+                                                installments === num ? "text-primary/80" : "text-muted-foreground"
+                                            )}>
+                                                {num}x de
+                                            </span>
+                                            <span className={cn(
+                                                "text-base font-bold",
+                                                installments === num ? "text-primary" : "text-foreground"
+                                            )}>
+                                                R$ {installmentValue.toFixed(2).replace('.', ',')}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

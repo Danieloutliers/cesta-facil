@@ -19,6 +19,8 @@ interface SystemSettings {
     };
     isOpen: boolean;
     profitMargin: number;
+    installmentRate1to2: number;
+    installmentRate3to5: number;
 }
 
 export default function Settings() {
@@ -31,7 +33,9 @@ export default function Settings() {
             end: '18:00'
         },
         isOpen: true,
-        profitMargin: 30 // Default 30%
+        profitMargin: 30, // Default 30%
+        installmentRate1to2: 0,
+        installmentRate3to5: 0
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -61,7 +65,9 @@ export default function Settings() {
                     estimatedDeliveryTime: settingsObj.estimatedDeliveryTime || 60,
                     workingHours: settingsObj.workingHours || { start: '08:00', end: '18:00' },
                     isOpen: settingsObj.isOpen ?? true,
-                    profitMargin: settingsObj.profitMargin || 30
+                    profitMargin: settingsObj.profitMargin || 30,
+                    installmentRate1to2: settingsObj.installmentRate1to2 || 0,
+                    installmentRate3to5: settingsObj.installmentRate3to5 || 0
                 });
             }
         } catch (error) {
@@ -81,7 +87,10 @@ export default function Settings() {
                 { key: 'estimatedDeliveryTime', value: settings.estimatedDeliveryTime },
                 { key: 'workingHours', value: settings.workingHours },
                 { key: 'isOpen', value: settings.isOpen },
-                { key: 'profitMargin', value: settings.profitMargin }
+                { key: 'isOpen', value: settings.isOpen },
+                { key: 'profitMargin', value: settings.profitMargin },
+                { key: 'installmentRate1to2', value: settings.installmentRate1to2 },
+                { key: 'installmentRate3to5', value: settings.installmentRate3to5 }
             ];
 
             for (const setting of settingsArray) {
@@ -208,6 +217,45 @@ export default function Settings() {
                             </div>
                         </div>
                     </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                        <Label>Taxas de Parcelamento (Carnê Digital)</Label>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="rate-1-2">Taxa 1-2 Parcelas (%)</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="rate-1-2"
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        className="pl-3 pr-8"
+                                        value={settings.installmentRate1to2}
+                                        onChange={(e) => setSettings({ ...settings, installmentRate1to2: parseFloat(e.target.value) })}
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="rate-3-5">Taxa 3-5 Parcelas (%)</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="rate-3-5"
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        className="pl-3 pr-8"
+                                        value={settings.installmentRate3to5}
+                                        onChange={(e) => setSettings({ ...settings, installmentRate3to5: parseFloat(e.target.value) })}
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </CardContent>
             </Card>
 
@@ -281,6 +329,6 @@ export default function Settings() {
                     {saving ? 'Salvando...' : 'Salvar Configurações'}
                 </Button>
             </div>
-        </div>
+        </div >
     );
 }

@@ -79,3 +79,26 @@ export const calculatePaymentSchedule = (
     }
     return items;
 };
+
+export const calculateInstallmentTotal = (
+    total: number,
+    installments: number,
+    rates: { rate1to2: number; rate3to5: number }
+) => {
+    let rate = 0;
+
+    if (installments >= 1 && installments <= 2) {
+        rate = rates.rate1to2;
+    } else if (installments >= 3 && installments <= 5) {
+        rate = rates.rate3to5;
+    }
+
+    const totalWithInterest = total * (1 + rate / 100);
+    const installmentValue = totalWithInterest / installments;
+
+    return {
+        installmentValue,
+        totalWithInterest,
+        interestRate: rate
+    };
+};

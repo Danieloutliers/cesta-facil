@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CartItem, Product, Order, Address } from '@/types';
+import { CartItem, Product, Order, Address, PaymentMethod } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import { sendWhatsAppMessage, getWhatsAppMessage } from '@/lib/whatsapp';
@@ -18,13 +18,13 @@ interface CartContextType {
   isOverBudget: boolean;
   savings: number;
   orders: Order[];
-  addOrder: (address: Address, missingItemPreference: 'substituir' | 'remover') => Promise<Order>;
+  addOrder: (address: Address, missingItemPreference: 'substituir' | 'remover', paymentMethod: PaymentMethod, installments?: number, customTotal?: number) => Promise<Order>;
   repeatOrder: (order: Order) => void;
   refreshOrders: () => Promise<void>;
   loading: boolean;
   editingOrderId: string | null;
   startEditingOrder: (order: Order) => void;
-  updateOrder: (address: Address, missingItemPreference: 'substituir' | 'remover') => Promise<void>;
+  updateOrder: (address: Address, missingItemPreference: 'substituir' | 'remover', paymentMethod: PaymentMethod, installments?: number, customTotal?: number) => Promise<void>;
   cancelEditing: () => void;
 }
 
@@ -146,7 +146,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => setItems([]);
 
-  const addOrder = async (address: Address, missingItemPreference: 'substituir' | 'remover'): Promise<Order> => {
+  const addOrder = async (address: Address, missingItemPreference: 'substituir' | 'remover', paymentMethod: PaymentMethod, installments: number = 1, customTotal?: number): Promise<Order> => {
     if (!user) {
       throw new Error('User must be logged in to create an order');
     }
@@ -156,11 +156,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       id: orderNumber,
       items: [...items],
       budget,
-      total,
+      total: customTotal || total,
       savings,
       status: 'processando',
       address,
       missingItemPreference,
+      paymentMethod,
+      installments,
       createdAt: new Date().toISOString(),
       estimatedDelivery: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     };
@@ -179,6 +181,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           status: order.status,
           address: order.address,
           missing_item_preference: order.missingItemPreference,
+          payment_method: order.paymentMethod,
+          installments: order.installments,
           created_at: order.createdAt,
           estimated_delivery: order.estimatedDelivery,
         }]);
@@ -248,7 +252,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     clearCart();
   };
 
-  const updateOrder = async (address: Address, missingItemPreference: 'substituir' | 'remover'): Promise<void> => {
+  const updateOrder = async (address: Address, missingItemPreference: 'substituir' | 'remover', paymentMethod: PaymentMethod, installments: number = 1, customTotal?: number): Promise<void> => {
     if (!user || !editingOrderId) {
       throw new Error('No user or order to edit');
     }
@@ -262,10 +266,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         .update({
           items: items,
           budget: budget,
-          total: updatedTotal,
+          total: customTotal || updatedTotal,
           savings: updatedSavings,
           address: address,
           missing_item_preference: missingItemPreference,
+          payment_method: paymentMethod,
+          installments: installments,
           updated_at: new Date().toISOString()
         })
         .eq('order_number', editingOrderId);

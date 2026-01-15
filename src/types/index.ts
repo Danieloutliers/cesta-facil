@@ -10,6 +10,8 @@ export interface Product {
   cost_price?: number;
 }
 
+export type PaymentMethod = 'dinheiro' | 'pix' | 'cartao' | 'carne';
+
 export interface SubCategory {
   id: string;
   label: string;
@@ -41,7 +43,7 @@ export interface Order {
   missingItemPreference: 'substituir' | 'remover';
   createdAt: string;
   estimatedDelivery?: string;
-  paymentMethod?: string;
+  paymentMethod?: PaymentMethod;
   installments?: number;
   paymentDay?: number;
   paymentDate?: string;
