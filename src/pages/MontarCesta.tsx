@@ -100,7 +100,7 @@ const MontarCesta = () => {
         </div>
 
         {/* Sticky Search Input & Categories - Agora juntos como barra fixa */}
-        <div className="sticky top-0 z-[49] bg-background py-3 -mx-4 px-4 shadow-sm mb-6 border-b border-border md:static md:shadow-none md:p-0 md:bg-transparent md:mx-0 md:border-0 transition-all">
+        <div className="sticky top-0 z-[49] bg-background/95 backdrop-blur-md py-3 -mx-4 px-4 shadow-sm mb-6 border-b border-border md:static md:shadow-none md:p-0 md:bg-transparent md:mx-0 md:border-0 transition-all">
           {/* Search */}
           <div className="w-full relative max-w-2xl mx-auto mb-3">
             <div className="relative group">

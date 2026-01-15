@@ -38,7 +38,7 @@ export interface Order {
   savings: number;
   status: 'processando' | 'separando' | 'em_rota' | 'entregue' | 'saiu_para_entrega' | 'cancelado';
   address: Address;
-  missingItemPreference: 'substituir' | 'credito';
+  missingItemPreference: 'substituir' | 'remover';
   createdAt: string;
   estimatedDelivery?: string;
   paymentMethod?: string;

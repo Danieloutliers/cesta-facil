@@ -9,7 +9,7 @@ interface OrderWithUser {
     savings: number;
     status: Order['status'];
     address: Address;
-    missingItemPreference: 'substituir' | 'credito';
+    missingItemPreference: 'substituir' | 'remover';
     createdAt: string;
     estimatedDelivery?: string;
     user?: {

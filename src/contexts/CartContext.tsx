@@ -18,13 +18,13 @@ interface CartContextType {
   isOverBudget: boolean;
   savings: number;
   orders: Order[];
-  addOrder: (address: Address, missingItemPreference: 'substituir' | 'credito') => Promise<Order>;
+  addOrder: (address: Address, missingItemPreference: 'substituir' | 'remover') => Promise<Order>;
   repeatOrder: (order: Order) => void;
   refreshOrders: () => Promise<void>;
   loading: boolean;
   editingOrderId: string | null;
   startEditingOrder: (order: Order) => void;
-  updateOrder: (address: Address, missingItemPreference: 'substituir' | 'credito') => Promise<void>;
+  updateOrder: (address: Address, missingItemPreference: 'substituir' | 'remover') => Promise<void>;
   cancelEditing: () => void;
 }
 
@@ -87,7 +87,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         savings: Number(row.savings),
         status: row.status as Order['status'],
         address: row.address as Address,
-        missingItemPreference: row.missing_item_preference as 'substituir' | 'credito',
+        missingItemPreference: (row.missing_item_preference === 'credito' ? 'remover' : row.missing_item_preference) as 'substituir' | 'remover',
         createdAt: row.created_at,
         estimatedDelivery: row.estimated_delivery,
         paymentMethod: row.payment_method,
@@ -146,7 +146,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => setItems([]);
 
-  const addOrder = async (address: Address, missingItemPreference: 'substituir' | 'credito'): Promise<Order> => {
+  const addOrder = async (address: Address, missingItemPreference: 'substituir' | 'remover'): Promise<Order> => {
     if (!user) {
       throw new Error('User must be logged in to create an order');
     }
@@ -248,7 +248,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     clearCart();
   };
 
-  const updateOrder = async (address: Address, missingItemPreference: 'substituir' | 'credito'): Promise<void> => {
+  const updateOrder = async (address: Address, missingItemPreference: 'substituir' | 'remover'): Promise<void> => {
     if (!user || !editingOrderId) {
       throw new Error('No user or order to edit');
     }

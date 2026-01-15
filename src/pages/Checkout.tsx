@@ -19,7 +19,7 @@ const Checkout = () => {
   const { items, total, budget, savings, addOrder, updateOrder, itemCount, orders, editingOrderId } = useCart();
   const { user } = useAuth(); // Import useAuth
   const [step, setStep] = useState<'address' | 'preferences' | 'success'>('address');
-  const [missingPreference, setMissingPreference] = useState<'substituir' | 'credito'>('substituir');
+  const [missingPreference, setMissingPreference] = useState<'substituir' | 'remover'>('substituir');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [address, setAddress] = useState<Address>({
