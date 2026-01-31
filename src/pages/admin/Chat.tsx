@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MessageCircle, Send, CheckCheck, ShoppingBag, Package, Clock, Truck, CheckCircle, XCircle, FileText, User, Tag, MapPin, DollarSign } from 'lucide-react';
+import { MessageCircle, Send, CheckCheck, ShoppingBag, Package, Clock, Truck, CheckCircle, XCircle, FileText, User, Tag, MapPin, DollarSign, Paperclip, Image, Upload } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -87,6 +87,13 @@ export default function ChatPage() {
     const [crmNotes, setCrmNotes] = useState('');
     const [crmStatus, setCrmStatus] = useState('novo');
     const [savingCrm, setSavingCrm] = useState(false);
+
+    // Media States
+    const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
+    const [mediaUrl, setMediaUrl] = useState('');
+    const [mediaCaption, setMediaCaption] = useState('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [uploadingMedia, setUploadingMedia] = useState(false);
 
     // Update CRM local state when selecting a chat
     useEffect(() => {
@@ -281,6 +288,7 @@ export default function ChatPage() {
             const res = await fetch(`${BOT_API_URL}/chats`);
             const data = await res.json();
             const chatsList = data.chats || [];
+
             setChats(chatsList);
 
             // Buscar stats de pedidos para cada chat
@@ -318,6 +326,36 @@ export default function ChatPage() {
             loadChats();
         } catch (error) {
             console.error('Erro ao carregar mensagens:', error);
+        }
+    };
+
+    // Upload de arquivo para Supabase
+    const uploadMedia = async () => {
+        if (!selectedFile || !selectedChat) return;
+
+        setUploadingMedia(true);
+        try {
+            // Criar FormData com o arquivo
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('caption', mediaCaption.trim());
+
+            // Enviar direto para o bot
+            await fetch(`${BOT_API_URL}/chats/${selectedChat.chatId}/send-media`, {
+                method: 'POST',
+                body: formData
+                // NÃO incluir Content-Type, o browser define automaticamente com boundary
+            });
+
+            // Limpar e fechar
+            setSelectedFile(null);
+            setMediaCaption('');
+            setMediaDialogOpen(false);
+        } catch (error) {
+            console.error('Erro ao enviar mídia:', error);
+            alert('Erro ao enviar imagem. Tente novamente.');
+        } finally {
+            setUploadingMedia(false);
         }
     };
 
@@ -842,6 +880,59 @@ export default function ChatPage() {
                                             }
                                         }}
                                     />
+                                    <Dialog open={mediaDialogOpen} onOpenChange={setMediaDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" size="icon">
+                                                <Paperclip className="h-4 w-4" />
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Enviar Imagem</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="space-y-4 pt-4">
+                                                <div>
+                                                    <label className="text-sm font-medium">Escolher Imagem</label>
+                                                    <Input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                                        className="cursor-pointer"
+                                                    />
+                                                    {selectedFile && (
+                                                        <p className="text-xs text-green-600 mt-1">
+                                                            ✓ {selectedFile.name}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="text-sm font-medium">Legenda (opcional)</label>
+                                                    <Input
+                                                        placeholder="Digite uma legenda..."
+                                                        value={mediaCaption}
+                                                        onChange={(e) => setMediaCaption(e.target.value)}
+                                                    />
+                                                </div>
+                                                <Button
+                                                    onClick={uploadMedia}
+                                                    className="w-full"
+                                                    disabled={!selectedFile || uploadingMedia}
+                                                >
+                                                    {uploadingMedia ? (
+                                                        <>
+                                                            <Upload className="h-4 w-4 mr-2 animate-spin" />
+                                                            Enviando...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Image className="h-4 w-4 mr-2" />
+                                                            Enviar Imagem
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
                                     <Button onClick={() => sendMessage()}>
                                         <Send className="h-4 w-4" />
                                     </Button>
@@ -849,14 +940,8 @@ export default function ChatPage() {
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground bg-[#f0f2f5]">
-                            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                                <MessageCircle className="h-8 w-8 text-primary" />
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2">WhatsApp Web CRM</h2>
-                            <p className="max-w-md">
-                                Selecione uma conversa para ver o histórico de pedidos, notas do cliente e gerenciar o atendimento.
-                            </p>
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                            Selecione uma conversa para começar
                         </div>
                     )}
                 </div>

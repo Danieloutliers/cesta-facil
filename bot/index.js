@@ -1,9 +1,12 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia, Location } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+require('dotenv').config();
 
 const app = express();
 const port = 3001;
@@ -12,6 +15,24 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
+// Configurar multer para upload de arquivos
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Configurar Gemini AI
+const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+let aiEnabled = process.env.AI_ENABLED === 'true';
+
+// Carregar base de conhecimento
+const knowledgeBasePath = path.join(__dirname, 'knowledge-base.json');
+let knowledgeBase = {};
+try {
+    knowledgeBase = JSON.parse(fs.readFileSync(knowledgeBasePath, 'utf8'));
+    console.log('📚 Base de conhecimento carregada');
+} catch (error) {
+    console.warn('⚠️ Base de conhecimento não encontrada');
+}
+
+const chatsFilePath = path.join(__dirname, 'chats.json');
 // Initialize WhatsApp Client
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -107,11 +128,147 @@ client.on('loading_screen', (percent, message) => {
     console.log('⏳ Carregando...', percent, message);
 });
 
-// ========== SISTEMA DE CHAT - RECEPÇÃO DE MENSAGENS ==========
-client.on('message', async (msg) => {
+
+// ========== FUNÇÃO DE IA ==========
+// Configurar cliente Supabase
+const { createClient } = require('@supabase/supabase-js');
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
+// Função para buscar contexto do cliente no Supabase
+async function fetchCustomerContext(phone) {
+    if (!supabase) {
+        console.warn('⚠️ Supabase client não inicializado (verifique .env)');
+        return null;
+    }
+
     try {
-        // Ignorar mensagens enviadas por nós
-        if (msg.fromMe) return;
+        // Limpar telefone (apenas números)
+        const cleanPhone = phone.replace(/\D/g, '');
+        // Tentar formatos: 5511.., 11..
+        // Tentar formatos: 5511.., 11..
+        const phoneVariations = [
+            cleanPhone,
+            cleanPhone.substring(2),
+            `+${cleanPhone}`,
+            cleanPhone.replace(/^55(\d{2})(\d{8,9})$/, '$1$2') // Apenas DDD + numero
+        ];
+
+        // Tentar adicionar nono dígito se não tiver (assumindo celular BR)
+        if (cleanPhone.length === 12 && cleanPhone.startsWith('55')) {
+            const ddd = cleanPhone.substring(2, 4);
+            const num = cleanPhone.substring(4);
+            if (num.length === 8) {
+                phoneVariations.push(`55${ddd}9${num}`);
+                phoneVariations.push(`${ddd}9${num}`);
+            }
+        }
+
+        console.log(`🔍 [Supabase] Buscando cliente com variações: ${phoneVariations.join(', ')}`);
+
+        // 1. Buscar Cliente (Tabela users)
+        const { data: customers, error: customerError } = await supabase
+            .from('users')
+            .select('*')
+            // Usar 'in' para buscar qualquer uma das variações
+            .in('phone', phoneVariations)
+            .limit(1);
+
+        if (customerError) {
+            console.error('❌ [Supabase] Erro ao buscar cliente:', customerError.message);
+            return null;
+        }
+
+        const customer = customers?.[0];
+
+        if (!customer) {
+            console.log('⚠️ [Supabase] Cliente não encontrado para este telefone.');
+            return null;
+        }
+
+        console.log(`✅ [Supabase] Cliente encontrado: ${customer.full_name || customer.name} (ID: ${customer.id})`);
+
+        // 2. Buscar Últimos Pedidos
+        const { data: orders, error: ordersError } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('user_id', customer.id) // Corrigido de customer_id para user_id
+            .order('created_at', { ascending: false })
+            .limit(3);
+
+        if (ordersError) {
+            console.error('❌ [Supabase] Erro ao buscar pedidos:', ordersError.message);
+        } else {
+            console.log(`📦 [Supabase] ${orders.length} pedidos recentes encontrados.`);
+        }
+
+        return {
+            customer: {
+                ...customer,
+                name: customer.full_name || customer.name // Normalizar nome
+            },
+            orders
+        };
+    } catch (error) {
+        console.error('Erro ao buscar contexto Supabase:', error);
+        return null;
+    }
+}
+
+async function analyzeWithAI(message, contactName, contactPhone) {
+    if (!genAI || !aiEnabled) {
+        return null;
+    }
+
+    try {
+        const model = genAI.getGenerativeModel({ model: process.env.AI_MODEL || 'gemini-1.5-flash' });
+
+        // Buscar dados reais do Supabase
+        const dbContext = await fetchCustomerContext(contactPhone);
+        let contextData = "";
+
+        if (dbContext) {
+            contextData = `
+DADOS DO CLIENTE IDENTIFICADO:
+Nome: ${dbContext.customer.name}
+Telefone: ${dbContext.customer.phone}
+Endereço: ${dbContext.customer.address || 'Não cadastrado'}
+
+ÚLTIMOS PEDIDOS:
+${dbContext.orders?.map(o =>
+                `- Pedido #${o.display_id || o.id.substring(0, 6)}: Status ${o.status}, Total R$ ${o.total_amount}. Data: ${new Date(o.created_at).toLocaleDateString()}`
+            ).join('\n') || 'Nenhum pedido recente.'}
+`;
+        }
+
+        const context = `Você é o assistente virtual da ${knowledgeBase.loja?.nome || 'Cesta Fácil'}, uma ${knowledgeBase.loja?.descricao || 'loja de cestas básicas'}.
+        
+CONTEXTO DO CLIENTE (Use se relevante):
+${contextData}
+
+INFORMAÇÕES DA LOJA:
+Cliente ${contactName} perguntou: "${message}"
+
+Sua resposta:`;
+
+        const result = await model.generateContent(context);
+        const response = await result.response;
+        const text = response.text();
+
+        console.log(`🤖 IA respondeu para ${contactName}: ${text.substring(0, 50)}...`);
+        return text;
+    } catch (error) {
+        console.error('❌ Erro ao analisar com IA:', error.message);
+        return null;
+    }
+}
+
+// ========== SISTEMA DE CHAT - RECEPÇÃO DE MENSAGENS ==========
+client.on('message_create', async (msg) => {
+    try {
+        // Ignorar status de broadcast
+        if (msg.from === 'status@broadcast') return;
 
         const contact = await msg.getContact();
         const chat = await msg.getChat();
@@ -122,30 +279,43 @@ client.on('message', async (msg) => {
             return;
         }
 
-        // Obter informações do contato
+        // Obter informações do contato (se for grupo, precisa de ajuste, mas aqui focamos em privado)
+        // Se for enviada por MIM, o 'from' sou eu, mas o chat deve ser registrado no 'to'.
+        // Mas o chatId do WWebJS para mensagens enviadas por mim é o 'to'.
+        const isFromMe = msg.fromMe;
+        const remoteId = isFromMe ? msg.to : msg.from;
+
+        // Se for grupo, ignorar
+        if (chat.isGroup) {
+            return;
+        }
+
         const contactInfo = {
-            chatId: msg.from,
-            name: contact.pushname || contact.name || msg.from.split('@')[0],
-            phone: msg.from.split('@')[0],
+            chatId: remoteId,
+            name: chat.name || remoteId.split('@')[0], // Tenta usar nome do chat
+            phone: remoteId.split('@')[0],
             profilePic: null,
             lastMessage: msg.body,
             lastMessageTime: new Date(msg.timestamp * 1000).toISOString(),
-            unreadCount: chat.unreadCount || 0
+            unreadCount: isFromMe ? 0 : (chat.unreadCount || 0)
         };
 
-        // Tentar obter foto de perfil
+        // Tentar obter foto de perfil do REMOTE
         try {
-            const profilePicUrl = await contact.getProfilePicUrl();
+            // Se sou eu, quero a foto do destinatário, não a minha
+            // O objeto 'chat' já tem informações do contato remoto em conversas privadas
+            const contactOps = await client.getContactById(remoteId);
+            const profilePicUrl = await contactOps.getProfilePicUrl();
             contactInfo.profilePic = profilePicUrl;
         } catch (err) {
-            console.log(`⚠️ Sem foto de perfil para ${contactInfo.name}`);
+            // console.log(`⚠️ Sem foto de perfil`);
         }
 
         // Criar objeto de mensagem
         const messageObj = {
             id: msg.id.id,
             from: msg.from,
-            fromMe: false,
+            fromMe: isFromMe,
             body: msg.body,
             timestamp: new Date(msg.timestamp * 1000).toISOString(),
             type: msg.type
@@ -154,27 +324,50 @@ client.on('message', async (msg) => {
         // Salvar no arquivo de chats
         const chats = readChatsFile();
 
-        if (!chats[msg.from]) {
-            chats[msg.from] = {
+        // Usar remoteId como chave (o cliente com quem falo)
+        if (!chats[remoteId]) {
+            chats[remoteId] = {
                 ...contactInfo,
                 messages: []
             };
         } else {
             // Atualizar informações do contato
-            chats[msg.from] = {
-                ...chats[msg.from],
-                name: contactInfo.name,
-                profilePic: contactInfo.profilePic || chats[msg.from].profilePic,
+            chats[remoteId] = {
+                ...chats[remoteId],
+                name: contactInfo.name || chats[remoteId].name, // Preservar nome se falhar
+                profilePic: contactInfo.profilePic || chats[remoteId].profilePic,
                 lastMessage: contactInfo.lastMessage,
                 lastMessageTime: contactInfo.lastMessageTime,
-                unreadCount: (chats[msg.from].unreadCount || 0) + 1
+                unreadCount: isFromMe ? chats[remoteId].unreadCount : ((chats[remoteId].unreadCount || 0) + 1)
             };
         }
 
-        chats[msg.from].messages.push(messageObj);
+        chats[remoteId].messages.push(messageObj);
         writeChatsFile(chats);
 
-        console.log(`💬 Mensagem recebida de ${contactInfo.name}: ${msg.body}`);
+        console.log(`💬 Mensagem ${isFromMe ? 'ENVIADA para' : 'RECEBIDA de'} ${contactInfo.name}: ${msg.body}`);
+
+        // ========== RESPOSTA AUTOMÁTICA COM IA ==========
+        console.log(`🤖 Analisando IA: Enabled=${aiEnabled}, FromMe=${msg.fromMe}, Type=${msg.type}, Body="${msg.body}"`);
+
+        if (aiEnabled && !msg.fromMe && msg.body && msg.type === 'chat') {
+            const aiResponse = await analyzeWithAI(msg.body, contactInfo.name, contactInfo.phone);
+
+            if (aiResponse) {
+                // Simular digitação
+                await chat.sendStateTyping();
+
+                // Delay baseado no tamanho da resposta
+                const typingDelay = Math.min(5000, Math.max(2000, aiResponse.length * 30));
+                await new Promise(resolve => setTimeout(resolve, typingDelay));
+
+                // Enviar resposta
+                await client.sendMessage(msg.from, aiResponse, { sendSeen: false });
+                await chat.clearState();
+
+                console.log(`✅ IA respondeu automaticamente para ${contactInfo.name}`);
+            }
+        }
     } catch (error) {
         console.error('❌ Erro ao processar mensagem recebida:', error);
     }
@@ -187,21 +380,26 @@ let lastStateCheck = 0;
 const STATE_CHECK_INTERVAL = 30000; // Check state only every 30 seconds
 
 app.get('/status', async (req, res) => {
-    // If we think we're ready, verify the connection occasionally (not every request)
+    // Force check state always for debugging
     const now = Date.now();
-    if (isReady && (now - lastStateCheck) > STATE_CHECK_INTERVAL) {
+    if ((now - lastStateCheck) > 5000) { // Check every 5s for now
         lastStateCheck = now;
         try {
             const state = await client.getState();
-            if (state !== 'CONNECTED') {
+            console.log(`🔍 Debug Status Check: State=${state}, isReady=${isReady}`);
+
+            if (state === 'CONNECTED') {
+                // NÃO definir isReady = true aqui!
+                // Devemos esperar o evento 'ready' do cliente para garantir que o WWebJS foi injetado.
+                // isReady = true; 
+                qrCodeData = null;
+            } else if (state !== 'CONNECTED' && isReady) {
                 console.log(`⚠️ Estado incorreto detectado: ${state}. Resetando...`);
                 isReady = false;
                 qrCodeData = null;
             }
         } catch (err) {
-            console.log('⚠️ Erro ao verificar estado. Cliente pode estar desconectado:', err.message);
-            isReady = false;
-            qrCodeData = null;
+            console.log('⚠️ Erro ao verificar estado:', err.message);
         }
     }
 
@@ -275,8 +473,21 @@ app.post('/send', async (req, res) => {
                     throw new Error('Number not registered');
                 }
 
-                const chatId = numberDetails._serialized;
-                await client.sendMessage(chatId, message);
+                // Simular Digitação
+                const chat = await client.getChatById(chatId);
+
+                // Calcular delay: 50ms por char, min 3s, max 10s
+                const typingDelay = Math.min(10000, Math.max(3000, message.length * 50));
+
+                console.log(`✍️ Digitando para ${formattedPhone} por ${typingDelay}ms...`);
+                await chat.sendStateTyping();
+
+                await new Promise(resolve => setTimeout(resolve, typingDelay));
+
+                // Parar digitação (opcional, o envio já remove o status, mas garante)
+                await chat.clearState();
+
+                await client.sendMessage(chatId, message, { sendSeen: false });
 
                 // Log message
                 const log = readLogFile();
@@ -300,7 +511,7 @@ app.post('/send', async (req, res) => {
                     // Última tentativa: usar fallback
                     try {
                         const fallbackId = formattedPhone + '@c.us';
-                        await client.sendMessage(fallbackId, message);
+                        await client.sendMessage(fallbackId, message, { sendSeen: false });
 
                         const log = readLogFile();
                         log.push({
@@ -440,7 +651,19 @@ app.post('/chats/:chatId/send', async (req, res) => {
 
         // Adicionar à fila
         const sendTask = async () => {
-            await client.sendMessage(chatId, message);
+            // Simular Digitação
+            const chatObj = await client.getChatById(chatId);
+
+            // Calcular delay: 50ms por char, min 3s, max 10s
+            const typingDelay = Math.min(10000, Math.max(3000, message.length * 50));
+
+            console.log(`✍️ Digitando para ${chatId} por ${typingDelay}ms...`);
+            await chatObj.sendStateTyping();
+
+            await new Promise(resolve => setTimeout(resolve, typingDelay));
+            await chatObj.clearState();
+
+            await client.sendMessage(chatId, message, { sendSeen: false });
 
             // Adicionar mensagem ao histórico
             const chats = readChatsFile();
@@ -489,7 +712,248 @@ app.post('/chats/:chatId/mark-read', (req, res) => {
     }
 });
 
+
 // ========== FIM DOS ENDPOINTS DE CHAT ==========
+
+// ========== ENDPOINTS DE MÍDIA ==========
+
+// POST /send-media - Enviar imagem ou documento
+app.post('/send-media', async (req, res) => {
+    if (!isReady) {
+        return res.status(503).json({ success: false, error: 'Bot not ready' });
+    }
+
+    try {
+        const { phone, mediaUrl, mediaType, caption } = req.body;
+
+        if (!phone || !mediaUrl) {
+            return res.status(400).json({ error: 'Missing phone or mediaUrl' });
+        }
+
+        // Formatar número
+        let formattedPhone = phone.replace(/\D/g, '');
+        if (!formattedPhone.startsWith('55')) {
+            formattedPhone = '55' + formattedPhone;
+        }
+
+        const sendTask = async () => {
+            const checkId = formattedPhone + '@c.us';
+            const numberDetails = await client.getNumberId(checkId);
+
+            if (!numberDetails) {
+                throw new Error('Number not registered');
+            }
+
+            const chatId = numberDetails._serialized;
+
+            // Simular digitação
+            const chatObj = await client.getChatById(chatId);
+            await chatObj.sendStateTyping();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Fazer download da mídia
+            console.log(`📥 Baixando mídia de: ${mediaUrl}`);
+            const media = await MessageMedia.fromUrl(mediaUrl);
+
+            // Enviar mídia
+            await client.sendMessage(chatId, media, {
+                caption: caption || '',
+                sendSeen: false
+            });
+
+            await chatObj.clearState();
+
+            console.log(`📤 Mídia enviada para ${formattedPhone}`);
+            return { success: true };
+        };
+
+        const result = await messageQueue.add(sendTask);
+        res.json(result);
+    } catch (error) {
+        console.error('Erro ao enviar mídia:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /send-location - Enviar localização
+app.post('/send-location', async (req, res) => {
+    if (!isReady) {
+        return res.status(503).json({ success: false, error: 'Bot not ready' });
+    }
+
+    try {
+        const { phone, latitude, longitude, description } = req.body;
+
+        if (!phone || !latitude || !longitude) {
+            return res.status(400).json({ error: 'Missing phone, latitude or longitude' });
+        }
+
+        // Formatar número
+        let formattedPhone = phone.replace(/\D/g, '');
+        if (!formattedPhone.startsWith('55')) {
+            formattedPhone = '55' + formattedPhone;
+        }
+
+        const sendTask = async () => {
+            const checkId = formattedPhone + '@c.us';
+            const numberDetails = await client.getNumberId(checkId);
+
+            if (!numberDetails) {
+                throw new Error('Number not registered');
+            }
+
+            const chatId = numberDetails._serialized;
+
+            // Simular digitação
+            const chatObj = await client.getChatById(chatId);
+            await chatObj.sendStateTyping();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Criar localização
+            const location = new Location(latitude, longitude, description || '');
+
+            // Enviar localização
+            await client.sendMessage(chatId, location, { sendSeen: false });
+
+            await chatObj.clearState();
+
+            console.log(`📍 Localização enviada para ${formattedPhone}`);
+            return { success: true };
+        };
+
+        const result = await messageQueue.add(sendTask);
+        res.json(result);
+    } catch (error) {
+        console.error('Erro ao enviar localização:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /chats/:chatId/send-media - Enviar mídia para um chat específico
+// POST /chats/:chatId/send-media - Enviar mídia para um chat específico
+app.post('/chats/:chatId/send-media', upload.single('file'), async (req, res) => {
+    if (!isReady) {
+        return res.status(503).json({ success: false, error: 'Bot not ready' });
+    }
+
+    try {
+        const { chatId } = req.params;
+        const { caption } = req.body;
+        const file = req.file;
+
+        if (!file) {
+            return res.status(400).json({ error: 'Missing file' });
+        }
+
+        const sendTask = async () => {
+            // Simular digitação
+            const chatObj = await client.getChatById(chatId);
+            await chatObj.sendStateTyping();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Criar MessageMedia a partir do buffer
+            console.log(`📥 Processando arquivo: ${file.originalname}`);
+            const media = new MessageMedia(
+                file.mimetype,
+                file.buffer.toString('base64'),
+                file.originalname
+            );
+
+            // Enviar mídia
+            await client.sendMessage(chatId, media, {
+                caption: caption || '',
+                sendSeen: false
+            });
+
+            await chatObj.clearState();
+
+            // Adicionar mensagem ao histórico
+            const chats = readChatsFile();
+            if (chats[chatId]) {
+                const messageObj = {
+                    id: `msg_${Date.now()}`,
+                    from: chatId,
+                    fromMe: true,
+                    body: caption || '📷 Imagem enviada',
+                    timestamp: new Date().toISOString(),
+                    type: 'image',
+                    hasMedia: true
+                };
+
+                chats[chatId].messages.push(messageObj);
+                chats[chatId].lastMessage = caption || '📷 Imagem';
+                chats[chatId].lastMessageTime = new Date().toISOString();
+                writeChatsFile(chats);
+            }
+
+            console.log(`📤 Mídia enviada para ${chatId}`);
+            return { success: true };
+        };
+
+        const result = await messageQueue.add(sendTask);
+        res.json(result);
+    } catch (error) {
+        console.error('Erro ao enviar mídia:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ========== FIM DOS ENDPOINTS DE MÍDIA ==========
+
+// ========== ENDPOINTS DE IA ==========
+
+// POST /ai/toggle - Ativar/desativar IA
+app.post('/ai/toggle', (req, res) => {
+    try {
+        const { enabled } = req.body;
+        aiEnabled = enabled;
+        console.log(`🤖 IA ${aiEnabled ? 'ATIVADA' : 'DESATIVADA'}`);
+        res.json({ success: true, aiEnabled });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /ai/status - Status da IA
+app.get('/ai/status', (req, res) => {
+    res.json({
+        enabled: aiEnabled,
+        available: !!genAI,
+        model: process.env.AI_MODEL || 'gemini-1.5-flash',
+        hasApiKey: !!process.env.GEMINI_API_KEY
+    });
+});
+
+// GET /ai/knowledge - Obter base de conhecimento atual
+app.get('/ai/knowledge', (req, res) => {
+    try {
+        res.json(knowledgeBase);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /ai/knowledge - Atualizar base de conhecimento
+app.post('/ai/knowledge', (req, res) => {
+    try {
+        const newKnowledge = req.body;
+
+        // Salvar em arquivo
+        fs.writeFileSync(knowledgeBasePath, JSON.stringify(newKnowledge, null, 2));
+
+        // Atualizar em memória
+        knowledgeBase = newKnowledge;
+
+        console.log('📚 Base de conhecimento atualizada via API');
+        res.json({ success: true, knowledgeBase });
+    } catch (error) {
+        console.error('Erro ao atualizar base de conhecimento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ========== FIM DOS ENDPOINTS DE IA ==========
+
 
 
 // API Endpoint to logout

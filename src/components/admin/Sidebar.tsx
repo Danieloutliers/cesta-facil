@@ -14,6 +14,7 @@ import {
     Store,
     DollarSign,
     Image,
+    Bot,
     X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -109,6 +110,11 @@ const navGroups: NavGroup[] = [
                 title: 'Chat',
                 href: '/admin/chat',
                 icon: MessageCircle
+            },
+            {
+                title: 'Inteligência Artificial',
+                href: '/admin/ai-settings',
+                icon: Bot
             },
             {
                 title: 'Configurações',

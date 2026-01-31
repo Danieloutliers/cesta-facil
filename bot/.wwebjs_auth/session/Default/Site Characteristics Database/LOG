@@ -1,3 +1,2 @@
-2026/01/10-15:58:52.260 21c0 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Site Characteristics Database/MANIFEST-000001
-2026/01/10-15:58:52.282 21c0 Recovering log #3
-2026/01/10-15:58:52.283 21c0 Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Site Characteristics Database/000003.log 
+2026/01/18-17:58:05.305 2130 Creating DB C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Site Characteristics Database since it was missing.
+2026/01/18-17:58:05.365 2130 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Site Characteristics Database/MANIFEST-000001

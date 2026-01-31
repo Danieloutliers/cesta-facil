@@ -1,11 +1,11 @@
 {
   "557788551433@c.us": {
     "chatId": "557788551433@c.us",
-    "name": "Daniel",
+    "name": "Notícias Populares",
     "phone": "557788551433",
-    "lastMessage": "Tudo sim",
-    "lastMessageTime": "2026-01-10T19:51:48.000Z",
-    "unreadCount": 1,
+    "lastMessage": "Como está meu pedido",
+    "lastMessageTime": "2026-01-18T20:59:52.000Z",
+    "unreadCount": 0,
     "messages": [
       {
         "id": "3A9BB70FE360516C32AA",
@@ -13,6 +13,606 @@
         "fromMe": false,
         "body": "Tudo sim",
         "timestamp": "2026-01-10T19:51:48.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A8AB268FED3648AB80F",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "E aí",
+        "timestamp": "2026-01-18T14:57:58.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AC0902AEA56695E68FB",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T15:00:16.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "msg_1768749123141",
+        "from": "557788551433@c.us",
+        "fromMe": true,
+        "body": "Seu pedido já saiu para entrega! Em breve chega aí. 🛵",
+        "timestamp": "2026-01-18T15:12:03.141Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A4460D6D328FDED7109",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T18:39:40.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A1B7FA5607F7B33467E",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Gg",
+        "timestamp": "2026-01-18T18:39:40.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A414175926AB4523CDD",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Fff",
+        "timestamp": "2026-01-18T18:39:51.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A35CC4E6CFA5AD40431",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Fff",
+        "timestamp": "2026-01-18T18:40:08.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A55ADB6CE7427C294A5",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T18:40:16.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "msg_1768761912569",
+        "from": "557788551433@c.us",
+        "fromMe": true,
+        "body": "Teste debug ap�s fix",
+        "timestamp": "2026-01-18T18:45:12.569Z",
+        "type": "chat"
+      },
+      {
+        "id": "msg_1768761922611",
+        "from": "557788551433@c.us",
+        "fromMe": true,
+        "body": "Seu pedido já saiu para entrega! Em breve chega aí. 🛵",
+        "timestamp": "2026-01-18T18:45:22.611Z",
+        "type": "chat"
+      },
+      {
+        "id": "msg_1768761936243",
+        "from": "557788551433@c.us",
+        "fromMe": true,
+        "body": "oi",
+        "timestamp": "2026-01-18T18:45:36.243Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A9FCB3604FBD2CDB79F",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T18:47:20.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A2812A7617040DFBEB6",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T18:48:10.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "msg_1768762301890",
+        "from": "557788551433@c.us",
+        "fromMe": true,
+        "body": "Seu pedido já saiu para entrega! Em breve chega aí. 🛵",
+        "timestamp": "2026-01-18T18:51:41.890Z",
+        "type": "chat"
+      },
+      {
+        "id": "msg_1768762309710",
+        "from": "557788551433@c.us",
+        "fromMe": true,
+        "body": "Nossa chave Pix é: cnpj@cestafacil.com.br",
+        "timestamp": "2026-01-18T18:51:49.710Z",
+        "type": "chat"
+      },
+      {
+        "id": "msg_1768763671733",
+        "from": "557788551433@c.us",
+        "fromMe": true,
+        "body": "📷 Imagem enviada",
+        "timestamp": "2026-01-18T19:14:31.733Z",
+        "type": "image",
+        "hasMedia": true
+      },
+      {
+        "id": "3A342B91EBB107B32793",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T19:20:22.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AD643EBFF005BBF9830",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Qual o horário?",
+        "timestamp": "2026-01-18T19:20:46.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A78ECA0365559FDF186",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Qual horário de funcionamento?",
+        "timestamp": "2026-01-18T19:23:52.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A7DE258943899D19EDA",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Qual horário de funcionamento?",
+        "timestamp": "2026-01-18T19:24:41.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3ACAA53B0E9A1C093CE4",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Qual horário de funcionamento?",
+        "timestamp": "2026-01-18T19:25:38.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A623D4098B7FA6A8435",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Qual horário de funcionamento?",
+        "timestamp": "2026-01-18T19:26:43.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AEF3FD789F1E525603C",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Qual horário de funcionamento?",
+        "timestamp": "2026-01-18T19:28:11.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AA58360398F44B90AF3",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Qual horário de funcionamento?",
+        "timestamp": "2026-01-18T19:31:16.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A889C86B16E9D05DD7C",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Que hora vcs entrega",
+        "timestamp": "2026-01-18T19:31:51.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AC69EA2535C7030D0D4",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T19:41:33.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AEF9D28DF36F41DCF82",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Meu pedido já foi entregue",
+        "timestamp": "2026-01-18T19:42:09.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A9BADA31EEAB7D94420",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "087.145.235-90",
+        "timestamp": "2026-01-18T19:42:42.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AA9962681510B584596",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "1",
+        "timestamp": "2026-01-18T19:43:13.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A0E4FBDA2227AEBCBE6",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Meu pedido já saiu?",
+        "timestamp": "2026-01-18T19:44:09.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A8DB625ABBFD538735B",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "77988551433",
+        "timestamp": "2026-01-18T19:44:29.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A39C6E49B29B9371D81",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Tbm",
+        "timestamp": "2026-01-18T19:47:02.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A3E107F5BC08E87F95F",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T19:48:07.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A3530B346FB62F63029",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu peu pedido",
+        "timestamp": "2026-01-18T19:53:05.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A36F3A276E8A77AE946",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T19:54:12.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "2A4873EB74EAAAA76207",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Oi",
+        "timestamp": "2026-01-18T19:57:50.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "2A3AB688B7DC95D48816",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Como tá meu pedido",
+        "timestamp": "2026-01-18T19:58:22.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "2AA0ED7A66B57BAF3F56",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Como tá meu pedido",
+        "timestamp": "2026-01-18T19:59:00.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "2AE2083673F596E0BA28",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Oi",
+        "timestamp": "2026-01-18T19:59:19.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A5F332C1B11C44B1022",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como tá meu pedido",
+        "timestamp": "2026-01-18T20:01:34.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB0620B4594EF79BD12F0",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá! É um prazer atender você aqui na **Cesta Fácil**! 🧺\n\nPara que eu possa verificar agora mesmo o status da sua entrega e te passar a informação certinha, por favor, me informe o **número do seu pedido** ou o **CPF** do titular da compra.\n\nAssim que você me enviar, eu já consulto aqui no sistema para você! Fico no aguardo. 😊",
+        "timestamp": "2026-01-18T20:01:46.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A106780329DF726A9AE",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como tá meu pedido",
+        "timestamp": "2026-01-18T20:05:42.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB030084FD5928AB5F3A3",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá! Seja bem-vindo(a) à **Cesta Fácil**! 🧺\n\nPara que eu possa verificar o status atual do seu pedido agora mesmo, por favor, me informe o **número do pedido** ou o **CPF do titular** da compra.\n\nAssim que você me enviar, já consulto aqui no sistema para te dizer se ele já saiu para entrega ou em que etapa está! 😉\n\nFico no aguardo.",
+        "timestamp": "2026-01-18T20:05:53.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AE9E2BEFF9A527969EB",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu pedido",
+        "timestamp": "2026-01-18T20:08:16.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB024ED7549A3E295EF81",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá, **Notícias Populares**! Tudo bem? \n\nPara que eu possa verificar exatamente como está o status do seu pedido aqui na **Cesta Fácil**, preciso de uma informação para localizá-lo em nosso sistema.\n\nPor favor, me informe:\n1. O **número do seu pedido** (enviado por e-mail no momento da compra);\n2. Ou o **CPF do titular** da compra.\n\nAssim que você me enviar esses dados, eu consulto agora mesmo para você!",
+        "timestamp": "2026-01-18T20:08:28.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A4B2EDBE8BCC0C018FC",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu pedido",
+        "timestamp": "2026-01-18T20:09:43.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A74B1DDE0D72BCD8CA0",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu pedido",
+        "timestamp": "2026-01-18T20:09:53.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB0E254C9F3E50BF9B33D",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá, **Notícias Populares**! É um prazer atender você.\n\nPara que eu possa localizar o seu pedido e te informar exatamente em qual etapa ele está, você poderia me informar o **número do pedido** ou o **CPF/CNPJ** cadastrado na compra?\n\nAssim que você me enviar esses dados, eu consulto o status agora mesmo para você! 🛒📦",
+        "timestamp": "2026-01-18T20:10:01.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB0D2D7B05286A958856B",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá! É um prazer atender você.\n\nPara que eu possa localizar o seu pedido aqui na **Cesta Fácil** e te passar o status atualizado agora mesmo, por favor, me informe:\n\n1. O **número do pedido**;\n2. Ou o **CPF do titular** da compra.\n\nAssim que você me enviar, eu verifico se ele já está em montagem, se saiu para entrega ou qual a previsão de chegada das suas cestas! 🧺✨",
+        "timestamp": "2026-01-18T20:10:03.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AFE280861DDDDEB03FD",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu pedido",
+        "timestamp": "2026-01-18T20:10:54.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB04DA5D1FB689B077F9F",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá, Notícias Populares! É um prazer atender você aqui na **Cesta Fácil**. 😊\n\nPara que eu possa localizar o seu pedido e te passar o status atualizado agora mesmo, você poderia me informar o **número do pedido** ou o **CPF/CNPJ** cadastrado na compra?\n\nAssim que você me enviar, eu já consulto nosso sistema para você!",
+        "timestamp": "2026-01-18T20:11:04.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AAE7D50FDDCFAC0184D",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi meu está meu pedido",
+        "timestamp": "2026-01-18T20:19:37.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A59726316674E54C0ED",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi meu está meu pedido",
+        "timestamp": "2026-01-18T20:21:59.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A6CC5321D9946BB22C8",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi meu está meu pedido",
+        "timestamp": "2026-01-18T20:26:39.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB0066A24B39DA5FBCA54",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá! Bem-vindo à **Cesta Fácil**. \n\nPara que eu possa localizar o seu pedido agora mesmo e te passar o status atualizado, você poderia me informar o **número do pedido** ou o **CPF** cadastrado na compra? \n\nAssim que você me enviar, eu verifico aqui no sistema para você! 😊",
+        "timestamp": "2026-01-18T20:26:48.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AF2A5A48267C5EE0510",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T20:30:25.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB011B0502D1A25951D23",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá! Tudo bem? Seja muito bem-vindo(a) à **Cesta Fácil**! 🧺✨\n\nEu sou o seu assistente virtual e estou aqui para facilitar a sua compra de cestas básicas personalizadas. \n\nComo notei que este é o seu primeiro contato conosco, estou à disposição para te apresentar nossas opções. Na Cesta Fácil, você pode escolher os itens que melhor atendem às suas necessidades ou selecionar um de nossos modelos prontos.\n\nComo posso te ajudar hoje?\n1. 📦 **Ver nossos modelos de cestas e preços.**\n2. 🛠️ **Saber como montar uma cesta personalizada.**\n3. 🚚 **Consultar taxas de entrega e prazos.**\n\nÉ só me dizer o que você procura! 😊",
+        "timestamp": "2026-01-18T20:30:46.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A028978E6B4536013B1",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T20:37:56.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A4F40AA04A5F4ED59D8",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu pedido",
+        "timestamp": "2026-01-18T20:38:13.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A70F41EBA7378A0A0FD",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu pedido",
+        "timestamp": "2026-01-18T20:46:30.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A1E3464B11CFBE45E3C",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T20:46:53.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3EB0A265B358334C9D7CB5",
+        "from": "557781092138@c.us",
+        "fromMe": true,
+        "body": "Olá, Daniel Lima! Tudo bem? 😊\n\nSeja muito bem-vindo à **Cesta Fácil**! Sou seu assistente virtual e estou aqui para te ajudar a encontrar a cesta básica ideal, personalizada do jeitinho que você precisa.\n\nVi aqui que você ainda não realizou pedidos conosco. Como posso te auxiliar hoje? \n\nPosso te mostrar nossas opções de cestas prontas ou te ajudar a montar uma exclusiva para sua necessidade. O que prefere?",
+        "timestamp": "2026-01-18T20:47:16.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3AB5580AE64FAD96629D",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T20:59:13.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "3A63139E46597BEFE549",
+        "from": "557788551433@c.us",
+        "fromMe": false,
+        "body": "Como está meu pedido",
+        "timestamp": "2026-01-18T20:59:52.000Z",
+        "type": "chat"
+      }
+    ],
+    "profilePic": "https://pps.whatsapp.net/v/t61.24694-24/614141863_4248792742043718_9091831570171687220_n.jpg?ccb=11-4&oh=01_Q5Aa3gFgplM8Cq7f-6aAYkWhV4EslqIUYG39QbkcqugCe09BlA&oe=697A6102&_nc_sid=5e03e0&_nc_cat=102"
+  },
+  "557799314525@c.us": {
+    "chatId": "557799314525@c.us",
+    "name": "+55 77 9931-4525",
+    "phone": "557799314525",
+    "profilePic": "https://pps.whatsapp.net/v/t61.24694-24/454338730_1025403189060659_7572490440892414658_n.jpg?ccb=11-4&oh=01_Q5Aa3gFMDr0V230OSFD0KKZhYHGY04xdsuGWXCrsIUW9s8-FXw&oe=697A4BCD&_nc_sid=5e03e0&_nc_cat=108",
+    "lastMessage": "",
+    "lastMessageTime": "2026-01-18T21:00:16.000Z",
+    "unreadCount": 2,
+    "messages": [
+      {
+        "id": "3EB0C17DACD4005F7290",
+        "from": "557799314525@c.us",
+        "fromMe": false,
+        "body": "",
+        "timestamp": "2026-01-18T14:56:17.000Z",
+        "type": "notification_template"
+      },
+      {
+        "id": "3EB0B37FF5AB889064D9",
+        "from": "557799314525@c.us",
+        "fromMe": false,
+        "body": "",
+        "timestamp": "2026-01-18T18:40:20.000Z",
+        "type": "notification_template"
+      },
+      {
+        "id": "3EB0D7C9AE781BD7A45D",
+        "from": "557799314525@c.us",
+        "fromMe": false,
+        "body": "",
+        "timestamp": "2026-01-18T19:58:41.000Z",
+        "type": "notification_template"
+      },
+      {
+        "id": "3EB0DA8860432073BAA4",
+        "from": "557799314525@c.us",
+        "fromMe": false,
+        "body": "",
+        "timestamp": "2026-01-18T20:47:48.000Z",
+        "type": "notification_template"
+      },
+      {
+        "id": "3EB0CBF85EE8837718C0",
+        "from": "557799314525@c.us",
+        "fromMe": false,
+        "body": "",
+        "timestamp": "2026-01-18T21:00:16.000Z",
+        "type": "notification_template"
+      }
+    ]
+  },
+  "557798199522@c.us": {
+    "chatId": "557798199522@c.us",
+    "name": "Andressa",
+    "phone": "557798199522",
+    "profilePic": "https://pps.whatsapp.net/v/t61.24694-24/533736761_1140619081354645_7470598014260824382_n.jpg?ccb=11-4&oh=01_Q5Aa3gH87X7INGjCylWrDRlQ0Ik_KiZcCEElYJKR45MbphWGeQ&oe=697A429E&_nc_sid=5e03e0&_nc_cat=109",
+    "lastMessage": "Como está o status do meu pedido?",
+    "lastMessageTime": "2026-01-18T19:51:09.000Z",
+    "unreadCount": 0,
+    "messages": [
+      {
+        "id": "AC0726987A23C52163DB50E28B0A20D1",
+        "from": "557798199522@c.us",
+        "fromMe": false,
+        "body": "Oi",
+        "timestamp": "2026-01-18T19:34:12.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "AC754E8BB96DD32FEBF44BCC24CF7B8E",
+        "from": "557798199522@c.us",
+        "fromMe": false,
+        "body": "Vcs vei entregar a hora",
+        "timestamp": "2026-01-18T19:34:56.000Z",
+        "type": "chat"
+      },
+      {
+        "id": "ACB30E67D2A76E969F76A0C437D1602F",
+        "from": "557798199522@c.us",
+        "fromMe": false,
+        "body": "Como está o status do meu pedido?",
+        "timestamp": "2026-01-18T19:51:09.000Z",
         "type": "chat"
       }
     ]

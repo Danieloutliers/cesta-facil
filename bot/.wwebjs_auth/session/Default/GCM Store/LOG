@@ -1,3 +1,2 @@
-2026/01/10-15:59:33.899 224c Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\GCM Store/MANIFEST-000001
-2026/01/10-15:59:33.912 224c Recovering log #3
-2026/01/10-15:59:33.915 224c Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\GCM Store/000003.log 
+2026/01/18-17:58:30.886 18b8 Creating DB C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\GCM Store since it was missing.
+2026/01/18-17:58:35.771 18b8 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\GCM Store/MANIFEST-000001

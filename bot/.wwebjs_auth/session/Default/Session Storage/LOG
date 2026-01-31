@@ -1,3 +1,2 @@
-2026/01/10-15:58:54.002 648 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Session Storage/MANIFEST-000001
-2026/01/10-15:58:54.020 648 Recovering log #3
-2026/01/10-15:58:54.024 648 Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Session Storage/000003.log 
+2026/01/18-17:58:05.849 3788 Creating DB C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Session Storage since it was missing.
+2026/01/18-17:58:06.006 3788 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Session Storage/MANIFEST-000001

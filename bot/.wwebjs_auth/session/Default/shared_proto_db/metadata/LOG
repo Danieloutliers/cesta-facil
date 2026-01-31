@@ -1,3 +1,2 @@
-2026/01/10-15:58:52.294 37c0 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db\metadata/MANIFEST-000001
-2026/01/10-15:58:52.318 37c0 Recovering log #3
-2026/01/10-15:58:52.318 37c0 Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db\metadata/000003.log 
+2026/01/18-17:58:05.797 4690 Creating DB C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db\metadata since it was missing.
+2026/01/18-17:58:05.853 4690 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\shared_proto_db\metadata/MANIFEST-000001

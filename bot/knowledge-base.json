@@ -1,0 +1,44 @@
+{
+    "loja": {
+        "nome": "Cesta Fácil",
+        "descricao": "Loja especializada em cestas básicas personalizadas",
+        "horario": "Segunda a Sexta: 8h às 18h, Sábado: 8h às 12h, Domingo: Fechado",
+        "telefone": "77 99999-9999",
+        "endereco": "Rua Exemplo, 123 - Centro"
+    },
+    "produtos": {
+        "categorias": [
+            "Alimentos",
+            "Bebidas",
+            "Higiene",
+            "Limpeza"
+        ],
+        "em_destaque": [
+            "Arroz",
+            "Feijão",
+            "Óleo",
+            "Açúcar",
+            "Café"
+        ],
+        "disponibilidade": "Consulte nosso catálogo completo no site"
+    },
+    "entrega": {
+        "prazo": "24 a 48 horas",
+        "areas_atendidas": "Toda a cidade",
+        "frete": "Consulte valor baseado no CEP"
+    },
+    "pagamento": {
+        "formas": [
+            "PIX",
+            "Cartão de crédito",
+            "Cartão de débito",
+            "Dinheiro"
+        ],
+        "parcelamento": "Até 3x sem juros no cartão"
+    },
+    "politicas": {
+        "trocas": "Até 7 dias após a entrega",
+        "devoluções": "Produtos com defeito são trocados imediatamente",
+        "cancelamento": "Até 2 horas após o pedido"
+    }
+}

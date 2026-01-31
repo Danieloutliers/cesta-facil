@@ -31,6 +31,7 @@ const Products = lazy(() => import("./pages/admin/Products"));
 const Categories = lazy(() => import("./pages/admin/Categories"));
 const Financial = lazy(() => import("./pages/admin/Financial"));
 const Banners = lazy(() => import("./pages/admin/Banners"));
+const AISettings = lazy(() => import("./pages/admin/AISettings"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
 // Delivery Routes
@@ -76,6 +77,7 @@ const App = () => (
                     <Route path="financial" element={<Financial />} />
                     <Route path="whatsapp" element={<WhatsappConnect />} />
                     <Route path="chat" element={<Chat />} />
+                    <Route path="ai-settings" element={<AISettings />} />
                     <Route path="reports" element={<Reports />} />
                     <Route path="settings" element={<Settings />} />
                   </Route>

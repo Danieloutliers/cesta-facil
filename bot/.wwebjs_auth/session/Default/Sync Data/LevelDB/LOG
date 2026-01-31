@@ -1,3 +1,2 @@
-2026/01/10-15:58:52.014 375c Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Sync Data\LevelDB/MANIFEST-000001
-2026/01/10-15:58:52.026 375c Recovering log #3
-2026/01/10-15:58:52.030 375c Reusing old log C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Sync Data\LevelDB/000003.log 
+2026/01/18-17:58:05.367 1048 Creating DB C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Sync Data\LevelDB since it was missing.
+2026/01/18-17:58:05.398 1048 Reusing MANIFEST C:\Users\Daniel\Documents\GitHub\cesta-facil\bot\.wwebjs_auth\session\Default\Sync Data\LevelDB/MANIFEST-000001

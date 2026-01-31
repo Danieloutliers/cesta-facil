@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Pencil, Trash2, Package } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, LayoutList, LayoutGrid, Link } from 'lucide-react';
 import { useProducts, useCategories, createProduct, updateProduct, deleteProduct } from '@/hooks/useData';
 import { ProductFormDialog } from '@/components/ProductFormDialog';
 import { BulkUpdateDialog } from '@/components/admin/BulkUpdateDialog';
@@ -28,6 +28,7 @@ const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
   const [defaultProfitMargin, setDefaultProfitMargin] = useState(30);
   const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -101,6 +102,37 @@ const Products = () => {
   const handleNewProduct = () => {
     setEditingProduct(null);
     setDialogOpen(true);
+  };
+
+  const handleQuickImageUpdate = async (product: Product) => {
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+
+      if (!clipboardText) {
+        alert('Área de transferência vazia!');
+        return;
+      }
+
+      if (!clipboardText.startsWith('http') && !clipboardText.startsWith('data:image')) {
+        alert('O texto copiado não parece ser um link válido ou uma imagem em base64.');
+        return;
+      }
+
+      await updateProduct(product.id, { image: clipboardText });
+      refetch();
+    } catch (error) {
+      console.error('Clipboard error or update failed:', error);
+      // Fallback to manual input
+      const newImage = prompt('Não foi possível ler a área de transferência. Cole o link aqui:', product.image);
+      if (newImage && newImage !== product.image) {
+        try {
+          await updateProduct(product.id, { image: newImage });
+          refetch();
+        } catch (e) {
+          alert('Erro ao atualizar imagem.');
+        }
+      }
+    }
   };
 
   const ProductTable = ({ products }: { products: Product[] }) => (
@@ -180,6 +212,98 @@ const Products = () => {
     </Table>
   );
 
+  const ProductGrid = ({ products }: { products: Product[] }) => (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-4">
+      {products.length === 0 ? (
+        <div className="col-span-full h-24 flex items-center justify-center text-muted-foreground">
+          Nenhum produto encontrado.
+        </div>
+      ) : (
+        products.map((product) => {
+          const cost = product.cost_price || 0;
+          const margin = cost > 0 ? ((product.price - cost) / cost) * 100 : 0;
+
+          return (
+            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col group">
+              <div className="aspect-square relative bg-muted overflow-hidden">
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-8 w-8 shadow-sm"
+                    onClick={() => window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(product.name)}`, '_blank')}
+                    title="Buscar imagem no Google"
+                  >
+                    <Search className="h-4 w-4 text-blue-600" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-8 w-8 shadow-sm"
+                    onClick={() => handleQuickImageUpdate(product)}
+                    title="Colar link da imagem"
+                  >
+                    <Link className="h-4 w-4 text-green-600" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-8 w-8 shadow-sm"
+                    onClick={() => handleEdit(product)}
+                    title="Editar produto"
+                  >
+                    <Pencil className="h-4 w-4 text-orange-600" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    className="h-8 w-8 shadow-sm"
+                    onClick={() => handleDelete(product.id, product.name)}
+                    title="Excluir produto"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <CardContent className="p-3 flex-1 flex flex-col gap-1">
+                <span className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">
+                  {categories.find(c => c.id === product.category)?.label || product.category}
+                </span>
+                <h3 className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]" title={product.name}>
+                  {product.name}
+                </h3>
+                <div className="flex items-end justify-between mt-auto pt-2">
+                  <div>
+                    <p className="text-lg font-bold text-primary">
+                      R$ {product.price.toFixed(2).replace('.', ',')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {product.unit}
+                    </p>
+                  </div>
+                  {cost > 0 && (
+                    <div className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${margin < 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
+                      {margin.toFixed(0)}%
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
+    </div>
+  );
+
+  const CurrentView = ({ products }: { products: Product[] }) => {
+    return viewMode === 'list' ? <ProductTable products={products} /> : <ProductGrid products={products} />;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -199,9 +323,9 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1 max-w-sm">
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="relative flex-1 max-w-sm w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
@@ -210,6 +334,27 @@ const Products = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+
+        <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border">
+          <Button
+            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="h-8 px-2 lg:px-3"
+            onClick={() => setViewMode('list')}
+          >
+            <LayoutList className="h-4 w-4 mr-2" />
+            <span className="hidden lg:inline">Lista</span>
+          </Button>
+          <Button
+            variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="h-8 px-2 lg:px-3"
+            onClick={() => setViewMode('grid')}
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            <span className="hidden lg:inline">Grade</span>
+          </Button>
         </div>
       </div>
 
@@ -259,7 +404,7 @@ const Products = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : (
-            <ProductTable products={filteredProducts} />
+            <CurrentView products={filteredProducts} />
           )}
         </TabsContent>
 
@@ -276,14 +421,12 @@ const Products = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
               ) : (
-                <ProductTable
+                <CurrentView
                   products={filteredProducts.filter(p => p.category === category.id)}
                 />
               )}
             </TabsContent>
           ))}
-
-
       </Tabs>
 
       <ProductFormDialog
