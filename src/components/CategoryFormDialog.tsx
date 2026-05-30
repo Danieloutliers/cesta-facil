@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,10 +14,27 @@ interface CategoryFormDialogProps {
 
 export function CategoryFormDialog({ open, onOpenChange, category, onSave }: CategoryFormDialogProps) {
     const [formData, setFormData] = useState<Omit<Category, 'id'>>({
-        label: category?.label || '',
-        icon: category?.icon || '',
+        label: '',
+        icon: '',
     });
     const [loading, setLoading] = useState(false);
+
+    // Update form data when category changes or dialog opens
+    useEffect(() => {
+        if (open) {
+            if (category) {
+                setFormData({
+                    label: category.label,
+                    icon: category.icon,
+                });
+            } else {
+                setFormData({
+                    label: '',
+                    icon: '',
+                });
+            }
+        }
+    }, [category, open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,16 +75,31 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSave }: Cat
 
                     <div className="space-y-2">
                         <Label htmlFor="icon">Ícone (Emoji)</Label>
-                        <Input
-                            id="icon"
-                            value={formData.icon}
-                            onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                            placeholder="ex: 🍚"
-                            required
-                            maxLength={2}
-                        />
+                        <div className="flex gap-2 mb-2">
+                            <Input
+                                id="icon"
+                                value={formData.icon}
+                                onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                                placeholder="ex: 🍚"
+                                required
+                                maxLength={2}
+                                className="w-20 text-center text-xl"
+                            />
+                            <div className="flex-1 flex flex-wrap gap-1 p-2 border rounded-md bg-slate-50/50">
+                                {['🍚', '🍞', '🍎', '🥩', '🥛', '🧼', '📦', '🎁', '🧺', '🛒', '🥬', '🍗', '🧴', '🍪', '🥤'].map(emoji => (
+                                    <button
+                                        key={emoji}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, icon: emoji })}
+                                        className={`w-8 h-8 flex items-center justify-center rounded hover:bg-white hover:shadow-sm transition-all text-lg ${formData.icon === emoji ? 'bg-white shadow-sm border-primary/20 border' : ''}`}
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                            Use um emoji para representar a categoria
+                            Escolha um emoji acima ou digite o seu preferido
                         </p>
                     </div>
 
