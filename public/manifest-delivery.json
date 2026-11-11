@@ -1,0 +1,16 @@
+{
+    "name": "Rota de Entrega",
+    "short_name": "Entrega",
+    "description": "App auxiliar para entregadores - Cesta Fácil",
+    "start_url": "/delivery",
+    "display": "standalone",
+    "background_color": "#16a34a",
+    "theme_color": "#16a34a",
+    "icons": [
+        {
+            "src": "/delivery-icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

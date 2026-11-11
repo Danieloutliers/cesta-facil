@@ -1,34 +1,89 @@
-export interface ReceiptData {
-  orderId: string;
-  customerName: string;
-  deliveryDate?: Date | string;
-  total: number;
-  paymentMethod?: string;
-  installments?: number;
-  paymentDate?: Date | string | null;
+
+export const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value);
+};
+
+export const formatDate = (date: string | Date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('pt-BR');
+};
+
+export const getPaymentMethodLabel = (method: string) => {
+    switch (method) {
+        case 'credit_card': return 'Cartão de Crédito';
+        case 'debit_card': return 'Cartão de Débito';
+        case 'money': return 'Dinheiro';
+        case 'carnet': return 'Carnê Digital';
+        default: return method;
+    }
+};
+
+export const generateInstallmentsList = (
+    total: number,
+    installments: number,
+    paymentDate?: Date | null,
+    baseDate: Date = new Date()
+) => {
+    if (!installments || installments <= 1) return [];
+
+    const installmentValue = total / installments;
+    const list = [];
+
+    const currentMonth = paymentDate ? paymentDate.getMonth() : baseDate.getMonth();
+    const currentYear = paymentDate ? paymentDate.getFullYear() : baseDate.getFullYear();
+    const day = paymentDate ? paymentDate.getDate() : baseDate.getDate();
+
+    // If no payment date, assume standard 30 days logic or similar? 
+    // But for this specific use case, we usually have a payment date.
+    // If using baseDate (today) and just day, we might need to increment month if day < today?
+    // Let's stick to the logic: if paymentDate provided, use it as anchor.
+
+    for (let i = 0; i < installments; i++) {
+        const date = new Date(currentYear, currentMonth + i, day);
+        list.push({
+            number: i + 1,
+            date: date,
+            value: installmentValue
+        });
+    }
+
+    return list;
+};
+
+interface ReceiptData {
+    orderId: string;
+    customerName: string;
+    deliveryDate: string | Date;
+    total: number;
+    paymentMethod: string;
+    installments?: number;
+    paymentDate?: Date | null;
 }
 
-export function generateReceiptMessage(data: ReceiptData): string {
-  const formatMoney = (val: number) => `R$ ${(Number(val) || 0).toFixed(2).replace('.', ',')}`;
-  const d = data.deliveryDate ? new Date(data.deliveryDate).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+export const generateReceiptMessage = (data: ReceiptData) => {
+    const installmentsList = generateInstallmentsList(
+        data.total,
+        data.installments || 1,
+        data.paymentDate,
+        new Date(data.deliveryDate)
+    );
 
-  let text = `*Comprovante de Pedido - Cesta Fácil* ✅\n\n`;
-  text += `*Pedido:* #${data.orderId}\n`;
-  text += `*Cliente:* ${data.customerName}\n`;
-  text += `*Data:* ${d}\n`;
-  text += `*Total:* ${formatMoney(data.total)}\n`;
+    const installmentsText = installmentsList.length > 0
+        ? `\n\n*Cronograma de Vencimentos:*\n` + installmentsList.map(i =>
+            `${i.number}ª Parcela (${formatDate(i.date)}): ${formatCurrency(i.value)}`
+        ).join('\n')
+        : '';
 
-  if (data.paymentMethod) {
-    text += `*Forma de Pagamento:* ${data.paymentMethod}\n`;
-  }
-
-  if (data.installments && data.installments > 1) {
-    const valParcela = data.total / data.installments;
-    text += `*Parcelamento:* ${data.installments}x de ${formatMoney(valParcela)}\n`;
-  }
-
-  text += `\nAgradecemos a preferência!`;
-  return text;
-}
-
-export const printReceipt = () => {};
+    return `*Comprovante de Entrega - Cesta Fácil* ✅\n\n` +
+        `*Pedido:* #${data.orderId}\n` +
+        `*Cliente:* ${data.customerName}\n` +
+        `*Data:* ${formatDate(data.deliveryDate)}\n\n` +
+        `*Total:* ${formatCurrency(data.total)}\n` +
+        `*Forma de Pagamento:* ${getPaymentMethodLabel(data.paymentMethod)}` +
+        (data.installments && data.installments > 1 ? ` (${data.installments}x de ${formatCurrency(data.total / data.installments)})` : '') +
+        installmentsText +
+        `\n\nObrigado pela preferência!`;
+};
