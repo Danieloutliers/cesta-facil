@@ -1,1 +1,0 @@
-window.__EXTENSION_CONFIG__={clientId:"waleads",clientName:"WaLeads",clientVersion:"2.0.60",clientDescription:"WaLeads",socketUrl:"https://apiv2.waleads.roote.com.br"};

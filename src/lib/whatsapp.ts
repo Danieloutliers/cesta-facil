@@ -86,9 +86,10 @@ export const getWhatsAppMessage = async (
 
     // Fallback messages if templates not available
     switch (status) {
-        case 'processando':
+        case 'processando': {
             const itemsList = order.items.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
             return `Olá ${firstName}! 🛒\n\nSeu pedido *#${shortId}* foi recebido e está sendo processado.\n\n*Itens:*\n${itemsList}\n\n*Total:* R$ ${order.total.toFixed(2).replace('.', ',')}\n*Endereço:* ${order.address.street}, ${order.address.number}, ${order.address.neighborhood}\n\nEm breve atualizaremos você!`;
+        }
         case 'separando':
             return `Olá ${firstName}! Já estamos separando os itens do seu pedido *#${shortId}*. Em breve sairá para entrega! 📦`;
         case 'em_rota':

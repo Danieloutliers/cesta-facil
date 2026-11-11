@@ -163,7 +163,6 @@ const DeliveryOrderDetail = () => {
                                 .insert(receivables);
 
                             if (finError) console.error("❌ Erro ao gerar contas a receber:", finError);
-                            else { }
                         }
                     } catch (finErr) {
                         console.error("Erro processamento financeiro:", finErr);

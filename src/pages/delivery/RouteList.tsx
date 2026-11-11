@@ -71,7 +71,7 @@ const RouteList = () => {
 
 
 
-            let transformedOrders: OrderWithUser[] = data.map((row: any) => ({
+            const transformedOrders: OrderWithUser[] = data.map((row: any) => ({
                 id: row.order_number || row.id,
                 items: row.items,
                 budget: Number(row.budget),
@@ -175,8 +175,7 @@ const RouteList = () => {
                         });
                     })
                     .then(res => {
-                        if (res && res.ok) { } // Success silently
-                        else console.warn("Falha ao enviar mensagem de rota");
+                        if (res && !res.ok) console.warn("Falha ao enviar mensagem de rota");
                     })
                     .catch(err => console.error("Erro no envio mensagens:", err));
             }

@@ -1,79 +1,97 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 interface BulkUpdateDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onSuccess: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
 }
 
 export function BulkUpdateDialog({ open, onOpenChange, onSuccess }: BulkUpdateDialogProps) {
-    const [delta, setDelta] = useState<string>('');
-    const [loading, setLoading] = useState(false);
+  const [marginPercent, setMarginPercent] = useState<number>(30);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-    const handleUpdate = async () => {
-        const deltaValue = parseFloat(delta);
-        if (isNaN(deltaValue) || deltaValue === 0) {
-            alert('Digite uma variação válida (ex: 5 ou -2)');
-            return;
+  const handleApply = async () => {
+    try {
+      setLoading(true);
+      // Fetch active products with cost_price > 0
+      const { data: prods, error } = await supabase
+        .from('products')
+        .select('id, cost_price, price')
+        .eq('active', true)
+        .gt('cost_price', 0);
+
+      if (error) throw error;
+
+      if (prods && prods.length > 0) {
+        for (const p of prods) {
+          const newPrice = Number((p.cost_price * (1 + marginPercent / 100)).toFixed(2));
+          await supabase.from('products').update({ price: newPrice }).eq('id', p.id);
         }
+      }
 
-        setLoading(true);
-        try {
-            const { error } = await supabase.rpc('bulk_update_margin', {
-                delta_percent: deltaValue
-            });
+      toast({
+        title: "Margens reajustadas",
+        description: `Margem de ${marginPercent}% aplicada aos produtos com preço de custo.`
+      });
+      onSuccess();
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Erro ao reajustar",
+        description: "Não foi possível atualizar as margens.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            if (error) throw error;
-
-            alert('Margens atualizadas com sucesso!');
-            onSuccess();
-            onOpenChange(false);
-            setDelta('');
-        } catch (error) {
-            console.error('Error updating margins:', error);
-            alert('Erro ao atualizar margens.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Reajuste de Margem em Massa</DialogTitle>
-                    <DialogDescription>
-                        Ajuste o preço de venda de TODOS os produtos com custo definido baseando-se em um aumento ou redução da margem.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="delta">Variação da Margem (%)</Label>
-                        <Input
-                            id="delta"
-                            type="number"
-                            placeholder="Ex: 5 para aumentar 5%, -2 para reduzir"
-                            value={delta}
-                            onChange={(e) => setDelta(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            <strong>Com Custo:</strong> Aumenta a margem em X% (Custo base).<br />
-                            <strong>Sem Custo:</strong> Aumenta o preço final em X% direto.
-                        </p>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleUpdate} disabled={loading}>
-                        {loading ? 'Atualizando...' : 'Confirmar Reajuste'}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reajustar Margens em Massa</DialogTitle>
+          <DialogDescription>
+            Ajuste automaticamente o preço de venda de todos os produtos com base no preço de custo e na margem de lucro desejada.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-3">
+          <Label>Nova Margem de Lucro Desejada (%)</Label>
+          <div className="relative">
+            <Input
+              type="number"
+              value={marginPercent}
+              onChange={(e) => setMarginPercent(parseFloat(e.target.value) || 0)}
+              min={0}
+              max={500}
+            />
+            <span className="absolute right-3 top-2.5 text-xs text-muted-foreground">%</span>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleApply} disabled={loading}>
+            {loading ? 'Aplicando...' : 'Aplicar Reajuste'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

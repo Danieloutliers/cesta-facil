@@ -1,22 +1,46 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Get environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isValidUrl = (url?: string): boolean => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+        const parsed = new URL(url.trim());
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
 
-// Fallback values to prevent crash
-const FALLBACK_URL = 'https://placeholder.supabase.co';
-const FALLBACK_KEY = 'placeholder-key';
+const KNOWN_PROJECT_KEYS: Record<string, string> = {
+    'https://vbtyvdotydiwuownbsaf.supabase.co': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZidHl2ZG90eWRpd3Vvd25ic2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2OTMyNTQsImV4cCI6MjA4MjI2OTI1NH0.fSdT53q0JIpHPUA7RHTqac7xnfnFs9DuSa7sjA4NSOQ',
+    'https://tvafddypmlgcvcrcumyp.supabase.co': 'sb_publishable_hLvEIFgm1PV53SXeH4RyiQ_XLMw2sw2'
+};
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Missing Supabase environment variables! Check .env.local');
-    console.warn('The app will load but database features will not work.');
-}
+const DEFAULT_URL = 'https://vbtyvdotydiwuownbsaf.supabase.co';
+const DEFAULT_KEY = KNOWN_PROJECT_KEYS[DEFAULT_URL];
 
-// Initialize Supabase client with fallbacks to prevent crash
+const getSupabaseCredentials = () => {
+    const rawUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+    const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+
+    if (rawUrl && isValidUrl(rawUrl)) {
+        const expectedKey = KNOWN_PROJECT_KEYS[rawUrl];
+        if (expectedKey) {
+            return { url: rawUrl, key: expectedKey };
+        }
+        if (rawKey) {
+            return { url: rawUrl, key: rawKey };
+        }
+    }
+
+    return { url: DEFAULT_URL, key: DEFAULT_KEY };
+};
+
+const { url: supabaseUrl, key: supabaseAnonKey } = getSupabaseCredentials();
+
+// Initialize Supabase client with verified credentials
 export const supabase = createClient(
-    supabaseUrl || FALLBACK_URL,
-    supabaseAnonKey || FALLBACK_KEY
+    supabaseUrl,
+    supabaseAnonKey
 );
 
 // Storage bucket name (mesmo do admin)

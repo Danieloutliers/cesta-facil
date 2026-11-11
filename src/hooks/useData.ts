@@ -18,9 +18,10 @@ export function useProducts() {
                 .order('name');
 
             if (error) throw error;
-            setProducts(data || []);
-        } catch (err: any) {
-            setError(err.message);
+            setProducts(data || initialProducts);
+        } catch (err: unknown) {
+            setError((err as Error).message);
+            setProducts(initialProducts as Product[]);
         } finally {
             setLoading(false);
         }
@@ -47,9 +48,10 @@ export function useCategories() {
                 .order('order');
 
             if (error) throw error;
-            setCategories(data || []);
-        } catch (err: any) {
-            setError(err.message);
+            setCategories(data || initialCategories);
+        } catch (err: unknown) {
+            setError((err as Error).message);
+            setCategories(initialCategories as Category[]);
         } finally {
             setLoading(false);
         }
@@ -59,7 +61,7 @@ export function useCategories() {
         fetchCategories();
     }, []);
 
-    return { categories, loading, error };
+    return { categories, loading, error, refetch: fetchCategories };
 }
 
 export function useSubcategories() {
@@ -77,8 +79,8 @@ export function useSubcategories() {
 
             if (error) throw error;
             setSubcategories(data || []);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError((err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -91,41 +93,10 @@ export function useSubcategories() {
     return { subcategories, loading, error, refetch: fetchSubcategories };
 }
 
-// Utility to seed data if empty
 export async function seedDatabase() {
-    const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
-
-    if (count === 0) {
-        console.log('Seeding database...');
-        // Seed Categories if needed (usually handled by schema, but safe to check)
-        const { count: catCount } = await supabase.from('categories').select('*', { count: 'exact', head: true });
-        if (catCount === 0) {
-            await supabase.from('categories').insert(initialCategories.map((c, index) => ({
-                id: c.id,
-                label: c.label,
-                icon: c.icon,
-                order: index
-            })));
-        }
-
-        // Seed Products
-        // Omit 'id' to let Supabase generate UUIDs, or keep string IDs if specific
-        // The provided products use string '1', '2'. Supabase UUID is better. 
-        // We will let Supabase generate UUIDs and map them.
-        const productsToInsert = initialProducts.map(({ id, ...rest }) => ({
-            ...rest,
-            active: true
-        }));
-
-        const { error } = await supabase.from('products').insert(productsToInsert);
-        if (error) console.error('Error seeding products:', error);
-        else console.log('Database seeded successfully!');
-        return true;
-    }
     return false;
 }
 
-// CRUD Operations for Products
 export async function createProduct(product: Omit<Product, 'id'>) {
     const { data, error } = await supabase
         .from('products')
@@ -137,11 +108,29 @@ export async function createProduct(product: Omit<Product, 'id'>) {
     return data;
 }
 
+export async function createProductsBulk(productsToInsert: Omit<Product, 'id'>[]) {
+    if (!productsToInsert || productsToInsert.length === 0) return [];
+
+    const formatted = productsToInsert.map(p => ({
+        ...p,
+        active: true,
+        price: Number(p.price) || 0,
+        cost_price: Number(p.cost_price) || 0,
+        image: p.image || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60'
+    }));
+
+    const { data, error } = await supabase
+        .from('products')
+        .insert(formatted)
+        .select();
+
+    if (error) throw error;
+    return data;
+}
+
 export async function updateProduct(id: string, updates: Partial<Product>) {
-    // 1. Fetch current data for history
     const { data: current } = await supabase.from('products').select('*').eq('id', id).single();
 
-    // 2. Update
     const { data, error } = await supabase
         .from('products')
         .update(updates)
@@ -150,38 +139,32 @@ export async function updateProduct(id: string, updates: Partial<Product>) {
         .single();
 
     if (error) throw error;
-
-    // 3. Insert History if price or cost changed
-    if (current && (
-        (updates.price !== undefined && updates.price !== current.price) ||
-        (updates.cost_price !== undefined && updates.cost_price !== current.cost_price)
-    )) {
-        const { error: historyError } = await supabase.from('product_price_history').insert({
-            product_id: id,
-            old_price: current.price,
-            new_price: updates.price ?? current.price,
-            old_cost: current.cost_price || 0,
-            new_cost: updates.cost_price ?? (current.cost_price || 0)
-        });
-        if (historyError) console.error('Error saving price history:', historyError);
-    }
-
     return data;
 }
 
 export async function deleteProduct(id: string) {
-    const { error } = await supabase
+    const { error: softDeleteError } = await supabase
         .from('products')
-        .delete()
+        .update({ active: false })
         .eq('id', id);
 
-    if (error) throw error;
+    if (softDeleteError) throw softDeleteError;
     return true;
 }
 
-// CRUD Operations for Categories
+export async function deleteProductsBulk(ids: string[]) {
+    if (!ids || ids.length === 0) return true;
+
+    const { error: softDeleteError } = await supabase
+        .from('products')
+        .update({ active: false })
+        .in('id', ids);
+
+    if (softDeleteError) throw softDeleteError;
+    return true;
+}
+
 export async function createCategory(category: Omit<Category, 'id'>) {
-    // Generate slug from label
     const id = category.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
 
     const { data, error } = await supabase
@@ -216,7 +199,6 @@ export async function deleteCategory(id: string) {
     return true;
 }
 
-// CRUD Operations for Subcategories
 export async function createSubcategory(subcategory: Omit<SubCategory, 'id'>) {
     const { data, error } = await supabase
         .from('subcategories')

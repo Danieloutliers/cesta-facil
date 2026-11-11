@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -11,24 +12,59 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Pencil, Trash2, Package, LayoutList, LayoutGrid, Link } from 'lucide-react';
-import { useProducts, useCategories, createProduct, updateProduct, deleteProduct } from '@/hooks/useData';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, Pencil, Trash2, Package, LayoutList, LayoutGrid, Link, FileSpreadsheet } from 'lucide-react';
+import { useProducts, useCategories, createProduct, updateProduct, deleteProduct, deleteProductsBulk } from '@/hooks/useData';
 import { ProductFormDialog } from '@/components/ProductFormDialog';
 import { BulkUpdateDialog } from '@/components/admin/BulkUpdateDialog';
+import { ImportProductsDialog } from '@/components/admin/ImportProductsDialog';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 import { Product } from '@/types';
 
 const Products = () => {
   const { products, loading, refetch } = useProducts();
   const { categories } = useCategories();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
   const [defaultProfitMargin, setDefaultProfitMargin] = useState(30);
   const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  // Quick Image Dialog state
+  const [quickImageProduct, setQuickImageProduct] = useState<Product | null>(null);
+  const [quickImageUrl, setQuickImageUrl] = useState('');
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // State for single deletion confirmation dialog
+  const [productToDelete, setProductToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -67,6 +103,27 @@ const Products = () => {
     return grouped;
   }, [products]);
 
+  // Selection handlers
+  const toggleSelectProduct = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = (visibleProducts: Product[]) => {
+    const visibleIds = visibleProducts.map(p => p.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
   const handleSave = async (productData: Omit<Product, 'id'> | Product) => {
     try {
       if ('id' in productData) {
@@ -82,15 +139,59 @@ const Products = () => {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Tem certeza que deseja excluir "${name}"?`)) {
-      try {
-        await deleteProduct(id);
-        refetch();
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        alert('Erro ao excluir produto');
-      }
+  const promptDelete = (id: string, name: string) => {
+    setProductToDelete({ id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    const target = productToDelete;
+    setProductToDelete(null);
+    try {
+      setDeleting(true);
+      await deleteProduct(target.id);
+      setSelectedIds(prev => prev.filter(id => id !== target.id));
+      toast({
+        title: "Produto excluído",
+        description: `"${target.name}" foi removido com sucesso.`
+      });
+      await refetch();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o produto. Tente novamente.",
+        variant: "destructive"
+      });
+      await refetch();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    setShowBulkDeleteConfirm(false);
+    try {
+      setBulkDeleting(true);
+      await deleteProductsBulk(selectedIds);
+      toast({
+        title: "Produtos excluídos",
+        description: `${count} produto(s) foram removidos com sucesso.`
+      });
+      setSelectedIds([]);
+      await refetch();
+    } catch (error) {
+      console.error('Error bulk deleting products:', error);
+      toast({
+        title: "Erro ao excluir produtos",
+        description: "Não foi possível excluir alguns ou todos os produtos selecionados.",
+        variant: "destructive"
+      });
+      await refetch();
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -104,34 +205,28 @@ const Products = () => {
     setDialogOpen(true);
   };
 
-  const handleQuickImageUpdate = async (product: Product) => {
+  const handleQuickImageUpdate = (product: Product) => {
+    setQuickImageProduct(product);
+    setQuickImageUrl(product.image || '');
+  };
+
+  const handleSaveQuickImage = async () => {
+    if (!quickImageProduct) return;
     try {
-      const clipboardText = await navigator.clipboard.readText();
-
-      if (!clipboardText) {
-        alert('Área de transferência vazia!');
-        return;
-      }
-
-      if (!clipboardText.startsWith('http') && !clipboardText.startsWith('data:image')) {
-        alert('O texto copiado não parece ser um link válido ou uma imagem em base64.');
-        return;
-      }
-
-      await updateProduct(product.id, { image: clipboardText });
+      await updateProduct(quickImageProduct.id, { image: quickImageUrl });
+      toast({
+        title: "Imagem atualizada",
+        description: `Imagem de "${quickImageProduct.name}" atualizada com sucesso.`
+      });
+      setQuickImageProduct(null);
       refetch();
     } catch (error) {
-      console.error('Clipboard error or update failed:', error);
-      // Fallback to manual input
-      const newImage = prompt('Não foi possível ler a área de transferência. Cole o link aqui:', product.image);
-      if (newImage && newImage !== product.image) {
-        try {
-          await updateProduct(product.id, { image: newImage });
-          refetch();
-        } catch (e) {
-          alert('Erro ao atualizar imagem.');
-        }
-      }
+      console.error('Error updating product image:', error);
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar a imagem.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -139,6 +234,15 @@ const Products = () => {
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-[40px]">
+            <Checkbox
+              checked={
+                products.length > 0 && products.every(p => selectedIds.includes(p.id))
+              }
+              onCheckedChange={() => toggleSelectAll(products)}
+              aria-label="Selecionar todos os produtos"
+            />
+          </TableHead>
           <TableHead className="w-[80px]">Imagem</TableHead>
           <TableHead>Nome</TableHead>
           <TableHead className="hidden md:table-cell">Categoria</TableHead>
@@ -151,7 +255,7 @@ const Products = () => {
       <TableBody>
         {products.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+            <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
               Nenhum produto encontrado.
             </TableCell>
           </TableRow>
@@ -159,9 +263,17 @@ const Products = () => {
           products.map((product) => {
             const cost = product.cost_price || 0;
             const margin = cost > 0 ? ((product.price - cost) / cost) * 100 : 0;
+            const isSelected = selectedIds.includes(product.id);
 
             return (
-              <TableRow key={product.id}>
+              <TableRow key={product.id} className={isSelected ? "bg-primary/5 dark:bg-primary/10" : ""}>
+                <TableCell>
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelectProduct(product.id)}
+                    aria-label={`Selecionar ${product.name}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <div className="h-10 w-10 rounded-md overflow-hidden bg-muted">
                     <img
@@ -198,7 +310,7 @@ const Products = () => {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => handleDelete(product.id, product.name)}
+                      onClick={() => promptDelete(product.id, product.name)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -222,10 +334,23 @@ const Products = () => {
         products.map((product) => {
           const cost = product.cost_price || 0;
           const margin = cost > 0 ? ((product.price - cost) / cost) * 100 : 0;
+          const isSelected = selectedIds.includes(product.id);
 
           return (
-            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col group">
+            <Card
+              key={product.id}
+              className={`overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col group relative ${
+                isSelected ? 'ring-2 ring-primary bg-primary/5 dark:bg-primary/10' : ''
+              }`}
+            >
               <div className="aspect-square relative bg-muted overflow-hidden">
+                <div className="absolute top-2 left-2 z-10 bg-background/80 backdrop-blur-xs p-1.5 rounded-md border shadow-xs">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelectProduct(product.id)}
+                    aria-label={`Selecionar ${product.name}`}
+                  />
+                </div>
                 <img
                   src={product.image}
                   alt={product.name}
@@ -263,7 +388,7 @@ const Products = () => {
                     size="icon"
                     variant="destructive"
                     className="h-8 w-8 shadow-sm"
-                    onClick={() => handleDelete(product.id, product.name)}
+                    onClick={() => promptDelete(product.id, product.name)}
                     title="Excluir produto"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -312,7 +437,15 @@ const Products = () => {
           <h2 className="text-3xl font-bold tracking-tight">Produtos</h2>
           <p className="text-muted-foreground">Gerencie o catálogo de produtos</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setImportDialogOpen(true)}
+            className="gap-2 border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+            Importar Planilha
+          </Button>
           <Button variant="outline" onClick={() => setBulkUpdateOpen(true)}>
             Reajustar Margens
           </Button>
@@ -322,6 +455,39 @@ const Products = () => {
           </Button>
         </div>
       </div>
+
+      {/* Bulk Action Toolbar Banner when items are selected */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 bg-primary/10 border border-primary/30 rounded-lg animate-in fade-in-50">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedIds.includes(p.id))}
+              onCheckedChange={() => toggleSelectAll(filteredProducts)}
+            />
+            <span className="font-semibold text-sm">
+              {selectedIds.length} {selectedIds.length === 1 ? 'produto selecionado' : 'produtos selecionados'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearSelection}
+            >
+              Desmarcar todos
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={bulkDeleting}
+              onClick={() => setShowBulkDeleteConfirm(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {bulkDeleting ? 'Excluindo...' : `Excluir Selecionados (${selectedIds.length})`}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
@@ -442,6 +608,100 @@ const Products = () => {
         onOpenChange={setBulkUpdateOpen}
         onSuccess={refetch}
       />
+
+      <ImportProductsDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onSuccess={refetch}
+      />
+
+      {/* Single product deletion dialog */}
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir produto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o produto <strong className="text-foreground">"{productToDelete?.name}"</strong>? Esta ação removerá o produto do catálogo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir Produto'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk deletion dialog */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir produtos selecionados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong className="text-foreground">{selectedIds.length}</strong> produto(s) selecionado(s)? Esta ação removerá os produtos do catálogo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {bulkDeleting ? 'Excluindo...' : `Excluir ${selectedIds.length} Produto(s)`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Quick Image Dialog */}
+      <Dialog open={!!quickImageProduct} onOpenChange={(open) => !open && setQuickImageProduct(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Atualizar Imagem do Produto</DialogTitle>
+            <DialogDescription>
+              Cole ou digite o link (URL) da imagem para <strong className="text-foreground">"{quickImageProduct?.name}"</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="aspect-square w-28 h-28 mx-auto rounded-md overflow-hidden bg-muted border flex items-center justify-center">
+              {quickImageUrl ? (
+                <img
+                  src={quickImageUrl}
+                  alt="Pré-visualização"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60';
+                  }}
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">Sem imagem</span>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Link da Imagem (URL ou Data URI)</label>
+              <Input
+                placeholder="https://exemplo.com/imagem.jpg"
+                value={quickImageUrl}
+                onChange={(e) => setQuickImageUrl(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickImageProduct(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveQuickImage} className="bg-primary">
+              Salvar Imagem
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

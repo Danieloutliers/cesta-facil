@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, History, Shield, Home, LogOut, LogIn, User, Bell } from 'lucide-react';
+import { ShoppingCart, History, Shield, Home, LogOut, LogIn, User, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ export function Header() {
     { href: '/', label: 'Início', icon: Home },
     { href: '/montar-cesta', label: 'Montar Cesta', icon: ShoppingCart },
     { href: '/historico', label: 'Meus Pedidos', icon: History },
+    { href: '/indicacao', label: 'Indicações 10%', icon: Gift },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin', icon: Shield }] : []),
   ];
 
@@ -63,7 +64,7 @@ export function Header() {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-2">
-          {/* User Info / Login Button */}
+          {/* User Info / Login Button (Desktop) */}
           {user ? (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-foreground/10">
               <User className="h-4 w-4 text-primary-foreground" />
@@ -80,16 +81,20 @@ export function Header() {
             </Link>
           )}
 
-          {/* Cart Button - Hidden on mobile, visible on desktop */}
-          <Link to="/montar-cesta" className="hidden md:block">
-            <Button variant="hero-outline" size="sm" className="relative">
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Carrinho</span>
-              {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-xs font-bold text-warning-foreground">
-                  {itemCount}
-                </span>
-              )}
+          {/* Sininho de Notificações */}
+          <Notifications />
+
+          {/* Botão de Indicações (10%) ao Lado do Sininho */}
+          <Link to="/indicacao" title="Indique e Ganhe 10%">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-primary-foreground hover:bg-primary-foreground/20 transition-all rounded-xl"
+            >
+              <Gift className="h-5 w-5 text-primary-foreground" />
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-black text-white shadow-sm ring-2 ring-primary animate-pulse">
+                10%
+              </span>
             </Button>
           </Link>
 
@@ -106,39 +111,28 @@ export function Header() {
             </Button>
           )}
 
-          {/* Mobile Menu Button Removed - Using Bottom Nav */}
-
-
-          {/* Mobile Actions (Notifications & Profile) */}
-          <div className="flex md:hidden items-center gap-1">
-            {/* Notification Bell */}
-            <Notifications />
-
-            {/* User Avatar */}
-            {user ? (
-              <Link to={isAdmin ? "/admin/settings" : "/perfil"}>
-                <Avatar className="h-8 w-8 border-2 border-primary-foreground/20">
-                  <AvatarFallback className="bg-primary-foreground/10 text-primary-foreground text-xs">
-                    {user.name ? user.name.substring(0, 2).toUpperCase() : <User className="h-4 w-4" />}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-            ) : (
-              <Link to="/login">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary-foreground hover:bg-primary-foreground/10"
-                >
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
-            )}
-          </div>
+          {/* User Avatar */}
+          {user ? (
+            <Link to={isAdmin ? "/admin/settings" : "/perfil"}>
+              <Avatar className="h-8 w-8 border-2 border-primary-foreground/20">
+                <AvatarFallback className="bg-primary-foreground/10 text-primary-foreground text-xs font-bold">
+                  {user.name ? user.name.substring(0, 2).toUpperCase() : <User className="h-4 w-4" />}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          ) : (
+            <Link to="/login" className="sm:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
-
-      {/* Mobile Navigation Removed */}
     </header>
   );
 }

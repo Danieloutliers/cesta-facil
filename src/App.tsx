@@ -17,6 +17,7 @@ const MontarCesta = lazy(() => import("./pages/MontarCesta"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const Historico = lazy(() => import("./pages/Historico"));
 const Profile = lazy(() => import("./pages/Profile")); // Added
+const Indicacao = lazy(() => import("./pages/Indicacao"));
 const Login = lazy(() => import("./pages/Login"));
 const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -60,6 +61,7 @@ const App = () => (
                   <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                   <Route path="/historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
                   <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                  <Route path="/indicacao" element={<ProtectedRoute><Indicacao /></ProtectedRoute>} />
                   <Route path="/admin" element={
                     <AdminProtectedRoute>
                       <AdminLayout />
