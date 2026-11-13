@@ -11,17 +11,25 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<Theme>(() => {
-        // Load from localStorage or default to light
-        const stored = localStorage.getItem('theme') as Theme;
-        return stored || 'light';
+        try {
+            const stored = localStorage.getItem('theme');
+            if (stored === 'dark' || stored === 'light') return stored;
+
+            return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } catch {
+            return 'light';
+        }
     });
 
     useEffect(() => {
-        // Update document class and localStorage
         const root = document.documentElement;
         root.classList.remove('light', 'dark');
         root.classList.add(theme);
-        localStorage.setItem('theme', theme);
+        try {
+            localStorage.setItem('theme', theme);
+        } catch {
+            // Storage unavailable: keep the session-only theme.
+        }
     }, [theme]);
 
     const toggleTheme = () => {

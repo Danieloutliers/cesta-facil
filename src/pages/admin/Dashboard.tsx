@@ -86,7 +86,9 @@ const Dashboard = () => {
                 .select('*');
 
             const totalOrders = orders?.length || 0;
-            const totalRevenue = orders?.reduce((sum, order) => sum + order.total, 0) || 0;
+            // Cancelled orders must not inflate revenue, sales or top products.
+            const validOrders = (orders ?? []).filter((order) => order.status !== 'cancelado');
+            const totalRevenue = validOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
             const pendingOrders = orders?.filter(o => ['processando', 'separando', 'em_rota'].includes(o.status)).length || 0;
 
             // Generate sales data for last 30 days
@@ -97,10 +99,10 @@ const Dashboard = () => {
                 salesByDate[date] = { revenue: 0, orders: 0 };
             });
 
-            orders?.forEach(order => {
+            validOrders.forEach(order => {
                 const orderDate = format(new Date(order.created_at), 'dd/MM');
                 if (salesByDate[orderDate]) {
-                    salesByDate[orderDate].revenue += order.total;
+                    salesByDate[orderDate].revenue += Number(order.total) || 0;
                     salesByDate[orderDate].orders += 1;
                 }
             });
@@ -114,13 +116,17 @@ const Dashboard = () => {
             // Calculate top products
             const productSales: { [key: string]: { quantity: number, revenue: number } } = {};
 
-            orders?.forEach(order => {
-                order.items.forEach((item: any) => {
+            validOrders.forEach(order => {
+                const items = (order.items ?? []) as Array<{ name?: string; quantity?: number; price?: number }>;
+                items.forEach((item) => {
+                    if (!item.name) return;
                     if (!productSales[item.name]) {
                         productSales[item.name] = { quantity: 0, revenue: 0 };
                     }
-                    productSales[item.name].quantity += item.quantity;
-                    productSales[item.name].revenue += item.price * item.quantity;
+                    const quantity = Number(item.quantity) || 0;
+                    const price = Number(item.price) || 0;
+                    productSales[item.name].quantity += quantity;
+                    productSales[item.name].revenue += price * quantity;
                 });
             });
 
@@ -166,44 +172,73 @@ const Dashboard = () => {
 
             {/* Funil de Pedidos */}
             <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-5">
-                <Card className="bg-yellow-50 border-yellow-200">
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-xs font-medium text-yellow-800 uppercase tracking-wider">Processando</CardTitle>
+                <Card className="border border-amber-200/80 bg-amber-500/5 dark:bg-amber-950/20 dark:border-amber-900/50 shadow-xs">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
+                            Processando
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-2xl font-bold text-yellow-900">{loading ? '-' : stats.statusCounts.processando}</div>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-300 tabular-nums">
+                            {loading ? '-' : stats.statusCounts.processando}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Aguardando separação</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-xs font-medium text-blue-800 uppercase tracking-wider">Separando</CardTitle>
+
+                <Card className="border border-blue-200/80 bg-blue-500/5 dark:bg-blue-950/20 dark:border-blue-900/50 shadow-xs">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-semibold text-blue-800 dark:text-blue-400 uppercase tracking-wider">
+                            Separando
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-2xl font-bold text-blue-900">{loading ? '-' : stats.statusCounts.separando}</div>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold tracking-tight text-blue-900 dark:text-blue-300 tabular-nums">
+                            {loading ? '-' : stats.statusCounts.separando}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Em montagem</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-indigo-50 border-indigo-200">
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-xs font-medium text-indigo-800 uppercase tracking-wider">Em Rota</CardTitle>
+
+                <Card className="border border-purple-200/80 bg-purple-500/5 dark:bg-purple-950/20 dark:border-purple-900/50 shadow-xs">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-semibold text-purple-800 dark:text-purple-400 uppercase tracking-wider">
+                            Em Rota
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-2xl font-bold text-indigo-900">{loading ? '-' : stats.statusCounts.em_rota}</div>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold tracking-tight text-purple-900 dark:text-purple-300 tabular-nums">
+                            {loading ? '-' : stats.statusCounts.em_rota}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Com entregador</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-green-50 border-green-200">
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-xs font-medium text-green-800 uppercase tracking-wider">Entregue</CardTitle>
+
+                <Card className="border border-emerald-200/80 bg-emerald-500/5 dark:bg-emerald-950/20 dark:border-emerald-900/50 shadow-xs">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
+                            Entregue
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-2xl font-bold text-green-900">{loading ? '-' : stats.statusCounts.entregue}</div>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-300 tabular-nums">
+                            {loading ? '-' : stats.statusCounts.entregue}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Finalizados</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-red-50 border-red-200">
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-xs font-medium text-red-800 uppercase tracking-wider">Cancelado</CardTitle>
+
+                <Card className="border border-red-200/80 bg-red-500/5 dark:bg-red-950/20 dark:border-red-900/50 shadow-xs">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-semibold text-red-800 dark:text-red-400 uppercase tracking-wider">
+                            Cancelado
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-2xl font-bold text-red-900">{loading ? '-' : stats.statusCounts.cancelado}</div>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold tracking-tight text-red-900 dark:text-red-300 tabular-nums">
+                            {loading ? '-' : stats.statusCounts.cancelado}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Descartados</p>
                     </CardContent>
                 </Card>
             </div>

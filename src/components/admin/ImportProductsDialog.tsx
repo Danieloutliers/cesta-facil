@@ -362,7 +362,7 @@ export const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({
         // Fallback for non-standard layout
         const strCells = row.map(c => String(c || '').trim());
         name = strCells.find(s => s.length > 2 && isNaN(Number(s)) && !s.match(/^r\$/i) && !s.match(/\d+ml|\d+g|\d+kg/i)) || strCells[1] || strCells[0] || '';
-        unit = strCells.find(s => s.match(/^\d+(\,\d+)?\s?(ml|g|kg|l|un|cx|pct|grm)$/i)) || 'un';
+        unit = strCells.find(s => s.match(/^\d+(,\d+)?\s?(ml|g|kg|l|un|cx|pct|grm)$/i)) || 'un';
 
         const prices = strCells.map(s => parsePtBrCurrency(s)).filter(p => p > 0);
         if (prices.length >= 2) {
@@ -429,10 +429,10 @@ export const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({
     if (file.name.endsWith('.csv') || file.name.endsWith('.tsv') || file.name.endsWith('.txt')) {
       reader.onload = (evt) => {
         const content = evt.target?.result as string;
-        Papa.parse(content, {
+        Papa.parse<unknown[]>(content, {
           skipEmptyLines: true,
           complete: (results) => {
-            processRawData(results.data as any[][]);
+            processRawData(results.data);
           }
         });
       };
@@ -445,7 +445,7 @@ export const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          const jsonRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          const jsonRows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
           processRawData(jsonRows);
         } catch (err) {
           console.error('Excel parse error:', err);
@@ -471,10 +471,10 @@ export const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({
       return;
     }
 
-    Papa.parse(pastedText.trim(), {
+    Papa.parse<unknown[]>(pastedText.trim(), {
       skipEmptyLines: true,
       complete: (results) => {
-        processRawData(results.data as any[][]);
+        processRawData(results.data);
       }
     });
   };
@@ -533,7 +533,7 @@ export const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({
       setImporting(true);
 
       // Cache existing subcategories
-      let currentSubcategories = [...subcategories];
+      const currentSubcategories = [...subcategories];
 
       // Prepare product records with subcategory_id
       const productsToInsert: Omit<Product, 'id'>[] = [];

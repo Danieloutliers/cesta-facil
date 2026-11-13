@@ -11,24 +11,62 @@ import { Bot, Save, Power, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-r
 import { useToast } from '@/hooks/use-toast';
 import { BOT_API_URL } from '@/config/bot';
 
+type KnowledgeSection = Record<string, string>;
+
+interface KnowledgeBase {
+    loja: KnowledgeSection;
+    produtos: KnowledgeSection;
+    entrega: KnowledgeSection;
+    pagamento: KnowledgeSection;
+    politicas: KnowledgeSection;
+}
+
+interface AiStatus {
+    enabled?: boolean;
+    available?: boolean;
+    model?: string;
+    hasApiKey?: boolean;
+}
+
+const emptyKnowledge: KnowledgeBase = {
+    loja: {},
+    produtos: {},
+    entrega: {},
+    pagamento: {},
+    politicas: {}
+};
+
+const SECTIONS: Array<keyof KnowledgeBase> = ['loja', 'produtos', 'entrega', 'pagamento', 'politicas'];
+
+/** The bot API may return arrays for multi-value fields; normalize to text. */
+const normalizeKnowledge = (input: unknown): KnowledgeBase => {
+    if (!input || typeof input !== 'object') return emptyKnowledge;
+    const source = input as Record<string, unknown>;
+
+    return SECTIONS.reduce<KnowledgeBase>((acc, section) => {
+        const rawSection = source[section];
+        acc[section] = {};
+        if (rawSection && typeof rawSection === 'object') {
+            Object.entries(rawSection as Record<string, unknown>).forEach(([key, value]) => {
+                acc[section][key] = Array.isArray(value) ? value.join(', ') : String(value ?? '');
+            });
+        }
+        return acc;
+    }, { ...emptyKnowledge });
+};
+
 export default function AISettings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [aiStatus, setAiStatus] = useState<any>(null);
-    const [knowledgeBase, setKnowledgeBase] = useState<any>({
-        loja: {},
-        produtos: {},
-        entrega: {},
-        pagamento: {},
-        politicas: {}
-    });
+    const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+    const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase>(emptyKnowledge);
     const { toast } = useToast();
 
     const fetchStatus = async () => {
         try {
             const res = await fetch(`${BOT_API_URL}/ai/status`);
             const data = await res.json();
-            setAiStatus(data);
+            setAiStatus(data as AiStatus);
         } catch (error) {
             console.error('Erro ao buscar status:', error);
         }
@@ -38,7 +76,7 @@ export default function AISettings() {
         try {
             const res = await fetch(`${BOT_API_URL}/ai/knowledge`);
             const data = await res.json();
-            setKnowledgeBase(data);
+            setKnowledgeBase(normalizeKnowledge(data));
         } catch (error) {
             console.error('Erro ao buscar base de conhecimento:', error);
             toast({
@@ -60,7 +98,7 @@ export default function AISettings() {
             });
             const data = await res.json();
             if (data.success) {
-                setAiStatus((prev: any) => ({ ...prev, enabled: data.aiEnabled }));
+                setAiStatus((prev) => ({ ...prev, enabled: Boolean(data.aiEnabled) }));
                 toast({
                     title: `IA ${data.aiEnabled ? 'Ativada' : 'Desativada'}`,
                     description: "Configuração atualizada com sucesso."
@@ -78,14 +116,22 @@ export default function AISettings() {
         setSaving(true);
         try {
             // Processar arrays de string (produtos, formas de pagamento)
-            const processedKnowledge = { ...knowledgeBase };
+            const processedKnowledge: Record<string, Record<string, unknown>> = { ...knowledgeBase };
 
             // Garantir que arrays sejam salvos corretamente se editados como texto
-            if (typeof processedKnowledge.produtos.em_destaque === 'string') {
-                processedKnowledge.produtos.em_destaque = processedKnowledge.produtos.em_destaque.split(',').map((i: string) => i.trim());
+            const produtosDest = processedKnowledge.produtos.em_destaque;
+            if (typeof produtosDest === 'string') {
+                processedKnowledge.produtos.em_destaque = produtosDest
+                    .split(',')
+                    .map((item) => item.trim())
+                    .filter(Boolean);
             }
-            if (typeof processedKnowledge.pagamento.formas === 'string') {
-                processedKnowledge.pagamento.formas = processedKnowledge.pagamento.formas.split(',').map((i: string) => i.trim());
+            const formasPagamento = processedKnowledge.pagamento.formas;
+            if (typeof formasPagamento === 'string') {
+                processedKnowledge.pagamento.formas = formasPagamento
+                    .split(',')
+                    .map((item) => item.trim())
+                    .filter(Boolean);
             }
 
             const res = await fetch(`${BOT_API_URL}/ai/knowledge`, {
@@ -112,12 +158,14 @@ export default function AISettings() {
     };
 
     useEffect(() => {
-        fetchStatus();
-        fetchKnowledge();
+        void fetchStatus();
+        void fetchKnowledge();
+        // Load once on mount; fetchKnowledge also reloads after saving.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleChange = (section: string, field: string, value: string) => {
-        setKnowledgeBase((prev: any) => ({
+    const handleChange = (section: keyof KnowledgeBase, field: string, value: string) => {
+        setKnowledgeBase((prev) => ({
             ...prev,
             [section]: {
                 ...prev[section],
@@ -264,9 +312,7 @@ export default function AISettings() {
                                 <div className="space-y-2">
                                     <Label>Produtos em Destaque (separe por vírgula)</Label>
                                     <Textarea
-                                        value={Array.isArray(knowledgeBase.produtos?.em_destaque)
-                                            ? knowledgeBase.produtos.em_destaque.join(', ')
-                                            : knowledgeBase.produtos?.em_destaque || ''}
+                                        value={knowledgeBase.produtos?.em_destaque || ''}
                                         onChange={(e) => handleChange('produtos', 'em_destaque', e.target.value)}
                                         rows={4}
                                     />
@@ -311,9 +357,7 @@ export default function AISettings() {
                                 <div className="space-y-2">
                                     <Label>Formas de Pagamento (separe por vírgula)</Label>
                                     <Textarea
-                                        value={Array.isArray(knowledgeBase.pagamento?.formas)
-                                            ? knowledgeBase.pagamento.formas.join(', ')
-                                            : knowledgeBase.pagamento?.formas || ''}
+                                        value={knowledgeBase.pagamento?.formas || ''}
                                         onChange={(e) => handleChange('pagamento', 'formas', e.target.value)}
                                         rows={3}
                                     />

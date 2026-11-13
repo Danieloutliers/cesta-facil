@@ -36,6 +36,13 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
+    /* Semantic colors referenced by tailwind.config.ts (bg-success/bg-warning).
+       Without these declarations the utilities resolve to an invalid color. */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 83% 14%;
+
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 158 64% 52%;
@@ -71,6 +78,11 @@
 
     --destructive: 0 62% 30%;
     --destructive-foreground: 210 40% 98%;
+
+    --success: 142 69% 45%;
+    --success-foreground: 222 47% 11%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 26 83% 14%;
 
     --border: 217 33% 17%;
     --input: 217 33% 17%;
@@ -157,8 +169,39 @@
   }
 
   /* Safe area for mobile devices */
-  .safe-area-inset-bottom {
+  .safe-area-inset-bottom,
+  .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Scroll containers: hide the native scrollbar without losing scroll. */
+  .hide-scrollbar,
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: hsl(var(--muted-foreground) / 0.3);
   }
 }
 

@@ -50,22 +50,30 @@ export function ProductDetailsModal({ product, open, onOpenChange }: ProductDeta
     const { items, addItem, removeItem } = useCart();
     const [isFavorite, setIsFavorite] = useState(false);
 
+    const readFavorites = (): string[] => {
+        try {
+            const parsed: unknown = JSON.parse(localStorage.getItem('favorites') || '[]');
+            return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+        } catch {
+            return [];
+        }
+    };
+
     // Load favorite state
     useEffect(() => {
         if (product) {
-            const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-            setIsFavorite(favorites.includes(product.id));
+            setIsFavorite(readFavorites().includes(product.id));
         }
     }, [product, open]);
 
     const toggleFavorite = () => {
         if (!product) return;
 
-        const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-        let newFavorites;
+        const favorites = readFavorites();
+        let newFavorites: string[];
 
         if (favorites.includes(product.id)) {
-            newFavorites = favorites.filter((id: string) => id !== product.id);
+            newFavorites = favorites.filter((id) => id !== product.id);
             setIsFavorite(false);
             toast.success('Removido dos favoritos');
         } else {
@@ -74,7 +82,11 @@ export function ProductDetailsModal({ product, open, onOpenChange }: ProductDeta
             toast.success('Adicionado aos favoritos ❤️');
         }
 
-        localStorage.setItem('favorites', JSON.stringify(newFavorites));
+        try {
+            localStorage.setItem('favorites', JSON.stringify(newFavorites));
+        } catch (error) {
+            console.warn('Could not persist favorites:', error);
+        }
     };
 
     if (!product) return null;
@@ -87,6 +99,26 @@ export function ProductDetailsModal({ product, open, onOpenChange }: ProductDeta
     const handleAddToCart = () => {
         addItem(product);
         toast.success(`Adicionado à cesta: ${product.name}`);
+    };
+
+    const handleShare = async () => {
+        const shareUrl = window.location.href;
+        const shareData = { title: product.name, text: `Confira ${product.name} no Mercado Fácil`, url: shareUrl };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+                return;
+            }
+            await navigator.clipboard.writeText(`${shareData.text} - ${shareUrl}`);
+            toast.success('Link copiado para a área de transferência');
+        } catch (error) {
+            // The user may cancel the native share sheet: that is not an error.
+            if (error instanceof Error && error.name !== 'AbortError') {
+                console.warn('Could not share product:', error);
+                toast.error('Não foi possível compartilhar este produto');
+            }
+        }
     };
 
     return (
@@ -173,11 +205,17 @@ export function ProductDetailsModal({ product, open, onOpenChange }: ProductDeta
                                             "rounded-full bg-background/50 hover:bg-background transition-colors h-10 w-10",
                                             isFavorite ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"
                                         )}
+                                        aria-label={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
                                     >
                                         <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
                                     </Button>
-                                    {/* Share Button (Visual Only) */}
-                                    <Button size="icon" variant="ghost" className="rounded-full bg-background/50 hover:bg-background text-muted-foreground hover:text-blue-500 transition-colors h-10 w-10">
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={handleShare}
+                                        className="rounded-full bg-background/50 hover:bg-background text-muted-foreground hover:text-blue-500 transition-colors h-10 w-10"
+                                        aria-label="Compartilhar produto"
+                                    >
                                         <Share2 className="h-5 w-5" />
                                     </Button>
                                 </div>

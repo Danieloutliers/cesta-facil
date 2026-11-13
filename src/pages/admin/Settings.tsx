@@ -6,8 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Save, Clock, DollarSign, MapPin, MessageSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+
+const toNumber = (value: unknown, fallback: number) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
 
 interface SystemSettings {
     deliveryFee: number;
@@ -42,7 +48,9 @@ export default function Settings() {
     const { toast } = useToast();
 
     useEffect(() => {
-        loadSettings();
+        void loadSettings();
+        // Load once on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadSettings = async () => {
@@ -54,24 +62,31 @@ export default function Settings() {
             if (error) throw error;
 
             if (data && data.length > 0) {
-                const settingsObj: any = {};
+                const settingsObj: Record<string, unknown> = {};
                 data.forEach(item => {
                     settingsObj[item.key] = item.value;
                 });
 
+                const workingHours = settingsObj.workingHours as SystemSettings['workingHours'] | undefined;
+
                 setSettings({
-                    deliveryFee: settingsObj.deliveryFee || 5.0,
-                    deliveryRadius: settingsObj.deliveryRadius || 10,
-                    estimatedDeliveryTime: settingsObj.estimatedDeliveryTime || 60,
-                    workingHours: settingsObj.workingHours || { start: '08:00', end: '18:00' },
-                    isOpen: settingsObj.isOpen ?? true,
-                    profitMargin: settingsObj.profitMargin || 30,
-                    installmentRate1to2: settingsObj.installmentRate1to2 || 0,
-                    installmentRate3to5: settingsObj.installmentRate3to5 || 0
+                    deliveryFee: toNumber(settingsObj.deliveryFee, 5.0),
+                    deliveryRadius: toNumber(settingsObj.deliveryRadius, 10),
+                    estimatedDeliveryTime: toNumber(settingsObj.estimatedDeliveryTime, 60),
+                    workingHours: workingHours ?? { start: '08:00', end: '18:00' },
+                    isOpen: typeof settingsObj.isOpen === 'boolean' ? settingsObj.isOpen : true,
+                    profitMargin: toNumber(settingsObj.profitMargin, 30),
+                    installmentRate1to2: toNumber(settingsObj.installmentRate1to2, 0),
+                    installmentRate3to5: toNumber(settingsObj.installmentRate3to5, 0)
                 });
             }
         } catch (error) {
             console.error('Error loading settings:', error);
+            toast({
+                title: 'Erro ao carregar configurações',
+                description: 'Os valores padrão foram aplicados.',
+                variant: 'destructive',
+            });
         } finally {
             setLoading(false);
         }
@@ -81,25 +96,28 @@ export default function Settings() {
         setSaving(true);
         try {
             // Upsert each setting
+            // Never persist NaN/undefined (e.g. an emptied number input).
             const settingsArray = [
-                { key: 'deliveryFee', value: settings.deliveryFee },
-                { key: 'deliveryRadius', value: settings.deliveryRadius },
-                { key: 'estimatedDeliveryTime', value: settings.estimatedDeliveryTime },
+                { key: 'deliveryFee', value: Number.isFinite(settings.deliveryFee) ? settings.deliveryFee : 0 },
+                { key: 'deliveryRadius', value: Number.isFinite(settings.deliveryRadius) ? settings.deliveryRadius : 0 },
+                { key: 'estimatedDeliveryTime', value: Number.isFinite(settings.estimatedDeliveryTime) ? settings.estimatedDeliveryTime : 0 },
                 { key: 'workingHours', value: settings.workingHours },
                 { key: 'isOpen', value: settings.isOpen },
-                { key: 'isOpen', value: settings.isOpen },
-                { key: 'profitMargin', value: settings.profitMargin },
-                { key: 'installmentRate1to2', value: settings.installmentRate1to2 },
-                { key: 'installmentRate3to5', value: settings.installmentRate3to5 }
+                { key: 'profitMargin', value: Number.isFinite(settings.profitMargin) ? settings.profitMargin : 0 },
+                { key: 'installmentRate1to2', value: Number.isFinite(settings.installmentRate1to2) ? settings.installmentRate1to2 : 0 },
+                { key: 'installmentRate3to5', value: Number.isFinite(settings.installmentRate3to5) ? settings.installmentRate3to5 : 0 }
             ];
 
-            for (const setting of settingsArray) {
-                const { error } = await supabase
-                    .from('settings')
-                    .upsert({ key: setting.key, value: setting.value }, { onConflict: 'key' });
+            const results = await Promise.all(
+                settingsArray.map((setting) =>
+                    supabase
+                        .from('settings')
+                        .upsert({ key: setting.key, value: setting.value }, { onConflict: 'key' })
+                )
+            );
 
-                if (error) throw error;
-            }
+            const failed = results.find((result) => result.error);
+            if (failed?.error) throw failed.error;
 
             toast({ title: 'Configurações salvas!', description: 'As alterações foram salvas com sucesso' });
         } catch (error) {
@@ -207,7 +225,7 @@ export default function Settings() {
                                         step="0.1"
                                         className="pl-3 pr-8"
                                         value={settings.profitMargin}
-                                        onChange={(e) => setSettings({ ...settings, profitMargin: parseFloat(e.target.value) })}
+                                        onChange={(e) => setSettings({ ...settings, profitMargin: parseFloat(e.target.value) || 0 })}
                                     />
                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                                 </div>
@@ -233,7 +251,7 @@ export default function Settings() {
                                         step="0.1"
                                         className="pl-3 pr-8"
                                         value={settings.installmentRate1to2}
-                                        onChange={(e) => setSettings({ ...settings, installmentRate1to2: parseFloat(e.target.value) })}
+                                        onChange={(e) => setSettings({ ...settings, installmentRate1to2: parseFloat(e.target.value) || 0 })}
                                     />
                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                                 </div>
@@ -248,7 +266,7 @@ export default function Settings() {
                                         step="0.1"
                                         className="pl-3 pr-8"
                                         value={settings.installmentRate3to5}
-                                        onChange={(e) => setSettings({ ...settings, installmentRate3to5: parseFloat(e.target.value) })}
+                                        onChange={(e) => setSettings({ ...settings, installmentRate3to5: parseFloat(e.target.value) || 0 })}
                                     />
                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                                 </div>
@@ -277,7 +295,7 @@ export default function Settings() {
                                 step="0.01"
                                 min="0"
                                 value={settings.deliveryFee}
-                                onChange={(e) => setSettings({ ...settings, deliveryFee: parseFloat(e.target.value) })}
+                                onChange={(e) => setSettings({ ...settings, deliveryFee: parseFloat(e.target.value) || 0 })}
                             />
                         </div>
 
@@ -288,7 +306,7 @@ export default function Settings() {
                                 type="number"
                                 min="1"
                                 value={settings.deliveryRadius}
-                                onChange={(e) => setSettings({ ...settings, deliveryRadius: parseInt(e.target.value) })}
+                                onChange={(e) => setSettings({ ...settings, deliveryRadius: parseInt(e.target.value, 10) || 0 })}
                             />
                         </div>
 
@@ -299,7 +317,7 @@ export default function Settings() {
                                 type="number"
                                 min="10"
                                 value={settings.estimatedDeliveryTime}
-                                onChange={(e) => setSettings({ ...settings, estimatedDeliveryTime: parseInt(e.target.value) })}
+                                onChange={(e) => setSettings({ ...settings, estimatedDeliveryTime: parseInt(e.target.value, 10) || 0 })}
                             />
                         </div>
                     </div>
@@ -317,7 +335,7 @@ export default function Settings() {
                 <CardContent>
                     <p className="text-sm text-muted-foreground">
                         As configurações de templates e bot WhatsApp estão na página{' '}
-                        <a href="/admin/whatsapp" className="text-primary hover:underline">WhatsApp</a>.
+                        <Link to="/admin/whatsapp" className="text-primary hover:underline">WhatsApp</Link>.
                     </p>
                 </CardContent>
             </Card>

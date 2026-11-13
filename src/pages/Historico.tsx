@@ -23,6 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 
 import { supabase } from '@/lib/supabase';
 import { calculatePaymentSchedule } from '@/lib/financial';
+import { getPaymentMethodLabel } from '@/lib/payment';
+import { useAuth } from '@/contexts/AuthContext';
 
 const statusConfig = {
   processando: { label: 'Processando', icon: Clock, color: 'text-warning bg-warning/10' },
@@ -54,7 +56,9 @@ const OrderCard = ({
   const schedule = calculatePaymentSchedule(order, null);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -80,11 +84,7 @@ const OrderCard = ({
               </span>
               {order.paymentMethod && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-                  {order.paymentMethod === 'credit_card' ? '💳 Crédito' :
-                    order.paymentMethod === 'debit_card' ? '💳 Débito' :
-                      order.paymentMethod === 'money' ? '💵 Dinheiro' :
-                        order.paymentMethod === 'carnet' ? '📋 Carnê' :
-                          order.paymentMethod === 'pix' ? '📱 PIX' : order.paymentMethod}
+                  {getPaymentMethodLabel(order.paymentMethod)}
                 </span>
               )}
             </div>
@@ -279,7 +279,8 @@ const OrderCard = ({
 
 const Historico = () => {
   const navigate = useNavigate();
-  const { orders, repeatOrder, refreshOrders, startEditingOrder } = useCart();
+  const { user } = useAuth();
+  const { orders, repeatOrder, refreshOrders, startEditingOrder, loading } = useCart();
   const { toast } = useToast();
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -294,14 +295,30 @@ const Historico = () => {
   };
 
   const handleCancelOrder = async (orderId: string) => {
+    if (!user) {
+      toast({
+        title: "Sessão expirada",
+        description: "Faça login novamente para cancelar o pedido.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsCancelling(true);
     try {
-      const { error } = await supabase
+      // Scope the update to the signed-in customer so an order number alone
+      // can never be used to cancel someone else's order.
+      const { data, error } = await supabase
         .from('orders')
         .update({ status: 'cancelado' })
-        .eq('order_number', orderId); // Assuming order.id is mapped to order_number in CartContext loading
+        .eq('order_number', orderId)
+        .eq('user_id', user.id)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Pedido não encontrado.');
+      }
 
       await refreshOrders();
 
@@ -340,7 +357,12 @@ const Historico = () => {
           </p>
         </div>
 
-        {orders.length === 0 ? (
+        {loading && orders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
+            <p className="text-sm font-medium">Carregando seus pedidos...</p>
+          </div>
+        ) : orders.length === 0 ? (
           <div className="text-center py-16 max-w-md mx-auto">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted mx-auto mb-6">
               <ShoppingCart className="h-10 w-10 text-muted-foreground" />

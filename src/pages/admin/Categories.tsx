@@ -13,10 +13,12 @@ import { useCategories, createCategory, updateCategory, deleteCategory, useSubca
 import { CategoryFormDialog } from '@/components/CategoryFormDialog';
 import { SubcategoriesDialog } from '@/components/SubcategoriesDialog';
 import { Category } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const Categories = () => {
-    const { categories, loading } = useCategories();
-    const { subcategories } = useSubcategories();
+    const { categories, loading, refetch } = useCategories();
+    const { subcategories, refetch: refetchSubcategories } = useSubcategories();
+    const { toast } = useToast();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [subDialogOpen, setSubDialogOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -29,28 +31,43 @@ const Categories = () => {
             } else {
                 await createCategory(categoryData);
             }
-            window.location.reload();
+            await refetch();
             setEditingCategory(null);
+            toast({ title: 'Categoria salva com sucesso!' });
         } catch (error) {
             console.error('Error saving category:', error);
+            toast({
+                title: 'Erro ao salvar categoria',
+                description: error instanceof Error ? error.message : 'Tente novamente.',
+                variant: 'destructive',
+            });
             throw error;
         }
     };
 
     const handleDelete = async (id: string, label: string) => {
         if (id === 'todos') {
-            alert('Não é possível excluir a categoria "Todos"');
+            toast({
+                title: 'Ação não permitida',
+                description: 'A categoria "Todos" é usada pela loja e não pode ser excluída.',
+                variant: 'destructive',
+            });
             return;
         }
 
-        if (confirm(`Tem certeza que deseja excluir "${label}"?`)) {
-            try {
-                await deleteCategory(id);
-                window.location.reload();
-            } catch (error) {
-                console.error('Error deleting category:', error);
-                alert('Erro ao excluir categoria');
-            }
+        if (!confirm(`Tem certeza que deseja excluir "${label}"?`)) return;
+
+        try {
+            await deleteCategory(id);
+            await Promise.all([refetch(), refetchSubcategories()]);
+            toast({ title: 'Categoria excluída.' });
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            toast({
+                title: 'Não foi possível excluir',
+                description: error instanceof Error ? error.message : 'Tente novamente.',
+                variant: 'destructive',
+            });
         }
     };
 
@@ -90,13 +107,13 @@ const Categories = () => {
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">
+                                <TableCell colSpan={5} className="h-24 text-center">
                                     Carregando...
                                 </TableCell>
                             </TableRow>
                         ) : editableCategories.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                                     Nenhuma categoria encontrada.
                                 </TableCell>
                             </TableRow>

@@ -7,7 +7,6 @@ import { Footer } from '@/components/Footer';
 import { ProductCard } from '@/components/ProductCard';
 import { PromoBanner } from '@/components/PromoBanner';
 import { CartPanel } from '@/components/CartPanel';
-import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
 import { useProducts, useCategories, useSubcategories, seedDatabase } from '@/hooks/useData';
 import { MobileNavBar } from '@/components/MobileNavBar'; // Import added
@@ -17,9 +16,6 @@ const MontarCesta = () => {
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [showHeader, setShowHeader] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const { budget } = useCart();
-
   const { products, loading: loadingProducts, refetch } = useProducts();
   const { categories, loading: loadingCategories } = useCategories();
   const { subcategories, loading: loadingSubcategories } = useSubcategories();
@@ -45,7 +41,6 @@ const MontarCesta = () => {
             setShowHeader(false);
           }
 
-          setLastScrollY(currentScrollY);
           ticking = false;
         });
         ticking = true;
@@ -108,6 +103,7 @@ const MontarCesta = () => {
               <Input
                 type="text"
                 placeholder="Buscar produtos..."
+                aria-label="Buscar produtos"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-10 pl-11 text-sm rounded-xl bg-background border-input focus-visible:ring-primary focus-visible:border-primary transition-all shadow-sm"
@@ -183,7 +179,7 @@ const MontarCesta = () => {
             <p className="text-muted-foreground animate-pulse font-medium">Carregando produtos...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 md:gap-6">
             {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

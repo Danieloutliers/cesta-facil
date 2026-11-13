@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { formatCurrency } from "@/utils/receipt";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { formatDate } from "@/utils/receipt";
 import { getRiskStatusLabel, RiskStatus } from "@/utils/financial";
 import { toast } from "sonner";
 import { BOT_API_URL } from "@/config/bot";
+import { registerInstallmentPaidForReferral } from "@/services/referralService";
 
 // Types
 interface Receivable {
@@ -82,15 +83,16 @@ export const FinancialDashboard = () => {
             const { data: existing } = await supabase.from('receivables').select('order_id');
             const existingIds = new Set(existing?.map(e => e.order_id));
 
-            const toInsert: any[] = [];
+            type ReceivableInsert = ReturnType<typeof generateReceivablesData>[number];
+            const toInsert: ReceivableInsert[] = [];
 
             for (const order of targetOrders || []) {
-                if (existingIds.has(order.id) || existingIds.has(order.order_number)) continue;
+                if (existingIds.has(order.id)) continue;
 
-                // Fix: Handle user as array or object depending on Supabase return type
-                const u = order.user as any;
+                // Supabase may return the joined user as an object or an array.
+                const u = order.user as { phone?: string } | Array<{ phone?: string }> | null;
                 const phone = Array.isArray(u) ? u[0]?.phone : u?.phone;
-                const consumerId = consumerMap.get(phone);
+                const consumerId = phone ? consumerMap.get(phone) : undefined;
 
                 if (consumerId) {
                     // Use payment_date if exists, else construct from payment_day
@@ -104,7 +106,8 @@ export const FinancialDashboard = () => {
                     const numInstallments = order.installments || 1;
 
                     const recs = generateReceivablesData(
-                        order.order_number || order.id,
+                        // receivables.order_id is a UUID column.
+                        order.id,
                         consumerId,
                         Number(order.total),
                         numInstallments,
@@ -168,6 +171,11 @@ export const FinancialDashboard = () => {
 
             if (error) throw error;
 
+            const rec = receivables.find(r => r.id === id);
+            if (rec?.order_id) {
+                await registerInstallmentPaidForReferral(rec.order_id);
+            }
+
             setReceivables(prev => prev.map(r => r.id === id ? { ...r, status: 'paid' } : r));
             toast.success("Parcela baixada com sucesso!");
         } catch (error) {
@@ -176,9 +184,14 @@ export const FinancialDashboard = () => {
     };
 
     const handleSendReminder = async (receivable: Receivable) => {
-        if (!receivable.consumer.phone) return;
+        const phoneDigits = receivable.consumer?.phone?.replace(/\D/g, '') ?? '';
+        if (!phoneDigits) {
+            toast.error("Cliente sem telefone cadastrado.");
+            return;
+        }
+        const phone = phoneDigits.startsWith('55') ? phoneDigits : `55${phoneDigits}`;
 
-        const message = `Olá ${receivable.consumer.full_name}! 👋\n\n` +
+        const message = `Olá ${receivable.consumer?.full_name || 'cliente'}! 👋\n\n` +
             `Lembrete da sua parcela ${receivable.installment_number} no valor de ${formatCurrency(receivable.amount)}.\n` +
             `Vencimento: ${formatDate(receivable.due_date)}.\n\n` +
             `Qualquer dúvida estamos à disposição!`;
@@ -187,10 +200,7 @@ export const FinancialDashboard = () => {
             await fetch(`${BOT_API_URL}/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    phone: receivable.consumer.phone,
-                    message
-                })
+                body: JSON.stringify({ phone, message })
             });
             toast.success("Lembrete enviado!");
         } catch (error) {
@@ -205,9 +215,11 @@ export const FinancialDashboard = () => {
         .reduce((acc, r) => acc + r.amount, 0);
     const totalPaid = receivables.filter(r => r.status === 'paid').reduce((acc, r) => acc + r.amount, 0);
 
+    const search = filter.trim().toLowerCase();
     const filteredList = receivables.filter(r =>
-        r.consumer?.full_name?.toLowerCase().includes(filter.toLowerCase()) ||
-        r.status.includes(filter.toLowerCase())
+        !search ||
+        r.consumer?.full_name?.toLowerCase().includes(search) ||
+        r.status.includes(search)
     );
 
     const overdueList = filteredList.filter(r => r.status === 'pending' && new Date(r.due_date) < new Date());
@@ -308,6 +320,7 @@ export const FinancialDashboard = () => {
                             item={item}
                             onPay={() => handleMarkAsPaid(item.id)}
                             onRemind={() => handleSendReminder(item)}
+                            isOverdue={false}
                         />
                     ))}
                     {activeList.length === 0 && <EmptyState message="Nenhuma conta a vencer." icon="📅" />}
@@ -320,6 +333,7 @@ export const FinancialDashboard = () => {
                             item={item}
                             onPay={() => { }}
                             onRemind={() => { }}
+                            isOverdue={false}
                         />
                     ))}
                 </TabsContent>
@@ -336,8 +350,15 @@ export const FinancialDashboard = () => {
     );
 };
 
+interface ReceivableItemProps {
+    item: Receivable;
+    onPay: () => void;
+    onRemind: () => void;
+    isOverdue: boolean;
+}
+
 // Sub-component for listing items
-const ReceivableItem = ({ item, onPay, onRemind, isOverdue }: any) => (
+const ReceivableItem = ({ item, onPay, onRemind, isOverdue }: ReceivableItemProps) => (
     <Card className={`transition-all hover:shadow-md ${isOverdue ? 'border-red-200 bg-red-50/30' : ''}`}>
         <CardContent className="p-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
@@ -379,7 +400,7 @@ const ReceivableItem = ({ item, onPay, onRemind, isOverdue }: any) => (
     </Card>
 );
 
-const EmptyState = ({ message, icon }: any) => (
+const EmptyState = ({ message, icon }: { message: string; icon: ReactNode }) => (
     <div className="flex flex-col items-center justify-center py-12 text-gray-400">
         <div className="text-4xl mb-2">{icon}</div>
         <p>{message}</p>

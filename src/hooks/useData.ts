@@ -11,6 +11,7 @@ export function useProducts() {
     const fetchProducts = async () => {
         try {
             setLoading(true);
+            setError(null);
             const { data, error } = await supabase
                 .from('products')
                 .select('*')
@@ -20,7 +21,7 @@ export function useProducts() {
             if (error) throw error;
             setProducts(data || []);
         } catch (err: unknown) {
-            setError((err as Error).message);
+            setError(err instanceof Error ? err.message : 'Erro ao carregar produtos');
         } finally {
             setLoading(false);
         }
@@ -41,6 +42,7 @@ export function useCategories() {
     const fetchCategories = async () => {
         try {
             setLoading(true);
+            setError(null);
             const { data, error } = await supabase
                 .from('categories')
                 .select('*')
@@ -49,7 +51,7 @@ export function useCategories() {
             if (error) throw error;
             setCategories(data || []);
         } catch (err: unknown) {
-            setError((err as Error).message);
+            setError(err instanceof Error ? err.message : 'Erro ao carregar categorias');
         } finally {
             setLoading(false);
         }
@@ -59,7 +61,7 @@ export function useCategories() {
         fetchCategories();
     }, []);
 
-    return { categories, loading, error };
+    return { categories, loading, error, refetch: fetchCategories };
 }
 
 export function useSubcategories() {
@@ -70,6 +72,7 @@ export function useSubcategories() {
     const fetchSubcategories = async () => {
         try {
             setLoading(true);
+            setError(null);
             const { data, error } = await supabase
                 .from('subcategories')
                 .select('*')
@@ -78,7 +81,7 @@ export function useSubcategories() {
             if (error) throw error;
             setSubcategories(data || []);
         } catch (err: unknown) {
-            setError((err as Error).message);
+            setError(err instanceof Error ? err.message : 'Erro ao carregar subcategorias');
         } finally {
             setLoading(false);
         }
@@ -190,65 +193,95 @@ export async function updateProduct(id: string, updates: Partial<Product>) {
 }
 
 export async function deleteProduct(id: string) {
-    // 1. Soft delete product first so it immediately disappears from catalog (useProducts filters active=true)
+    // Soft delete first so the product immediately disappears from the catalog.
     const { error: softDeleteError } = await supabase
         .from('products')
         .update({ active: false })
         .eq('id', id);
 
-    // 2. Clean up price history references
-    try {
-        await supabase.from('product_price_history').delete().eq('product_id', id);
-    } catch (historyErr) {
-        console.warn('Price history cleanup note:', historyErr);
-    }
-
-    // 3. Attempt hard delete if possible
-    try {
-        await supabase.from('products').delete().eq('id', id);
-    } catch (hardDeleteErr) {
-        console.warn('Hard delete skipped due to foreign key constraints, soft-delete applied:', hardDeleteErr);
-    }
-
     if (softDeleteError) throw softDeleteError;
+
+    // Supabase returns errors instead of throwing, so every step is checked.
+    const { error: historyError } = await supabase
+        .from('product_price_history')
+        .delete()
+        .eq('product_id', id);
+    if (historyError) {
+        console.warn('Price history cleanup skipped:', historyError.message);
+    }
+
+    // Hard delete is best-effort: orders keep historical item snapshots and may
+    // reference the product, in which case the soft delete is enough.
+    const { error: hardDeleteError } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+    if (hardDeleteError) {
+        console.warn('Hard delete skipped (foreign key constraints):', hardDeleteError.message);
+    }
+
     return true;
 }
 
 export async function deleteProductsBulk(ids: string[]) {
     if (!ids || ids.length === 0) return true;
 
-    // 1. Soft delete all matching products so they immediately disappear from useProducts
     const { error: softDeleteError } = await supabase
         .from('products')
         .update({ active: false })
         .in('id', ids);
 
-    // 2. Clean up price history references
-    try {
-        await supabase.from('product_price_history').delete().in('product_id', ids);
-    } catch (historyErr) {
-        console.warn('Price history bulk cleanup note:', historyErr);
-    }
-
-    // 3. Attempt hard delete if possible
-    try {
-        await supabase.from('products').delete().in('id', ids);
-    } catch (hardDeleteErr) {
-        console.warn('Hard delete skipped due to foreign key constraints, soft-delete applied:', hardDeleteErr);
-    }
-
     if (softDeleteError) throw softDeleteError;
+
+    const { error: historyError } = await supabase
+        .from('product_price_history')
+        .delete()
+        .in('product_id', ids);
+    if (historyError) {
+        console.warn('Price history bulk cleanup skipped:', historyError.message);
+    }
+
+    const { error: hardDeleteError } = await supabase
+        .from('products')
+        .delete()
+        .in('id', ids);
+    if (hardDeleteError) {
+        console.warn('Bulk hard delete skipped (foreign key constraints):', hardDeleteError.message);
+    }
+
     return true;
 }
 
 // CRUD Operations for Categories
 export async function createCategory(category: Omit<Category, 'id'>) {
-    // Generate slug from label
-    const id = category.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+    const label = category.label.trim();
+    if (!label) throw new Error('Informe o nome da categoria');
+
+    // Generate a URL-safe slug from the label.
+    const id = label
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+
+    if (!id) throw new Error('O nome da categoria gera um identificador inválido');
+
+    const { data: existing } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+    if (existing) {
+        throw new Error('Já existe uma categoria com esse nome');
+    }
 
     const { data, error } = await supabase
         .from('categories')
-        .insert([{ id, ...category, order: 999 }])
+        .insert([{ id, ...category, label, order: 999 }])
         .select()
         .single();
 
@@ -269,6 +302,19 @@ export async function updateCategory(id: string, updates: Partial<Category>) {
 }
 
 export async function deleteCategory(id: string) {
+    // Products reference categories by slug without a FK, so guard against
+    // silently orphaning them before deleting the category.
+    const { count, error: countError } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('category', id)
+        .eq('active', true);
+
+    if (countError) throw countError;
+    if (count && count > 0) {
+        throw new Error(`Existem ${count} produto(s) ativo(s) nesta categoria. Mova-os antes de excluir.`);
+    }
+
     const { error } = await supabase
         .from('categories')
         .delete()

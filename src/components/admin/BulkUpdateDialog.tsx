@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { updateProduct } from '@/hooks/useData';
+import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/lib/errors';
 
 interface BulkUpdateDialogProps {
     open: boolean;
@@ -11,14 +14,57 @@ interface BulkUpdateDialogProps {
     onSuccess: () => void;
 }
 
+/**
+ * Adjusts the margin/price of every product with a defined cost.
+ * Prefers the database RPC (fast, atomic) and falls back to a client-side
+ * recalculation when the RPC has not been deployed.
+ */
 export function BulkUpdateDialog({ open, onOpenChange, onSuccess }: BulkUpdateDialogProps) {
     const [delta, setDelta] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
+
+    const applyClientSide = async (deltaValue: number) => {
+        const { data, error } = await supabase
+            .from('products')
+            .select('id, price, cost_price')
+            .eq('active', true);
+
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error('Nenhum produto ativo encontrado.');
+
+        let updated = 0;
+        for (const product of data) {
+            const price = Number(product.price) || 0;
+            const cost = Number(product.cost_price) || 0;
+
+            let newPrice: number;
+            if (cost > 0) {
+                // Current margin, then apply the requested variation.
+                const currentMargin = ((price - cost) / cost) * 100;
+                newPrice = cost * (1 + (currentMargin + deltaValue) / 100);
+            } else {
+                newPrice = price * (1 + deltaValue / 100);
+            }
+
+            newPrice = Math.max(0, Math.round(newPrice * 100) / 100);
+            if (newPrice === price) continue;
+
+            await updateProduct(product.id, { price: newPrice });
+            updated += 1;
+        }
+
+        return updated;
+    };
 
     const handleUpdate = async () => {
-        const deltaValue = parseFloat(delta);
-        if (isNaN(deltaValue) || deltaValue === 0) {
-            alert('Digite uma variação válida (ex: 5 ou -2)');
+        const deltaValue = parseFloat(delta.replace(',', '.'));
+        if (!Number.isFinite(deltaValue) || deltaValue === 0) {
+            toast({
+                title: 'Variação inválida',
+                description: 'Digite um valor diferente de zero (ex: 5 ou -2).',
+                variant: 'destructive',
+            });
             return;
         }
 
@@ -28,15 +74,27 @@ export function BulkUpdateDialog({ open, onOpenChange, onSuccess }: BulkUpdateDi
                 delta_percent: deltaValue
             });
 
-            if (error) throw error;
+            if (error) {
+                // RPC not deployed in this project: apply the same rule locally.
+                const updated = await applyClientSide(deltaValue);
+                toast({
+                    title: 'Margens atualizadas!',
+                    description: `${updated} produto(s) reajustado(s).`,
+                });
+            } else {
+                toast({ title: 'Margens atualizadas com sucesso!' });
+            }
 
-            alert('Margens atualizadas com sucesso!');
             onSuccess();
             onOpenChange(false);
             setDelta('');
         } catch (error) {
             console.error('Error updating margins:', error);
-            alert('Erro ao atualizar margens.');
+            toast({
+                title: 'Erro ao atualizar margens',
+                description: getErrorMessage(error),
+                variant: 'destructive',
+            });
         } finally {
             setLoading(false);
         }

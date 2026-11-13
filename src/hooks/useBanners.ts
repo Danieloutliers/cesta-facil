@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Banner } from '@/types/banner';
 import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/lib/errors';
 
 export function useBanners() {
     const [banners, setBanners] = useState<Banner[]>([]);
@@ -20,8 +21,8 @@ export function useBanners() {
             if (error) throw error;
             setBanners(data || []);
             setError(null);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
             console.error('Error fetching banners:', err);
         } finally {
             setLoading(false);
@@ -52,8 +53,8 @@ export function useAllBanners() {
             if (error) throw error;
             setBanners(data || []);
             setError(null);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
             console.error('Error fetching all banners:', err);
         } finally {
             setLoading(false);
@@ -87,10 +88,10 @@ export function useBannerMutations() {
             });
 
             return data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: 'Erro ao criar banner',
-                description: error.message,
+                description: getErrorMessage(error),
                 variant: 'destructive',
             });
             throw error;
@@ -114,10 +115,10 @@ export function useBannerMutations() {
             });
 
             return data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: 'Erro ao atualizar banner',
-                description: error.message,
+                description: getErrorMessage(error),
                 variant: 'destructive',
             });
             throw error;
@@ -139,10 +140,10 @@ export function useBannerMutations() {
             });
 
             return true;
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: 'Erro ao deletar banner',
-                description: error.message,
+                description: getErrorMessage(error),
                 variant: 'destructive',
             });
             throw error;
@@ -164,10 +165,10 @@ export function useBannerMutations() {
             });
 
             return true;
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: 'Erro ao alterar status',
-                description: error.message,
+                description: getErrorMessage(error),
                 variant: 'destructive',
             });
             throw error;
@@ -192,10 +193,10 @@ export function useBannerMutations() {
             });
 
             return true;
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: 'Erro ao reordenar',
-                description: error.message,
+                description: getErrorMessage(error),
                 variant: 'destructive',
             });
             throw error;

@@ -1,7 +1,7 @@
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Order } from "@/types";
+import { Order, CartItem, Address } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,23 @@ interface OrderWithUser extends Order {
 
 type SortOption = 'newest' | 'optimized' | 'neighborhood';
 
+interface RouteOrderRow {
+    id: string;
+    order_number: string | null;
+    items: CartItem[] | null;
+    budget: number | null;
+    total: number | null;
+    savings: number | null;
+    status: Order['status'];
+    address: Address;
+    missing_item_preference: Order['missingItemPreference'] | null;
+    created_at: string;
+    estimated_delivery: string | null;
+    payment_method: Order['paymentMethod'] | null;
+    installments: number | null;
+    user: { phone?: string | null; name?: string | null } | null;
+}
+
 const RouteList = () => {
     const [orders, setOrders] = useState<OrderWithUser[]>([]);
     const [loading, setLoading] = useState(true);
@@ -41,13 +58,11 @@ const RouteList = () => {
         setLoading(true);
 
 
-        // Safety timeout
+        // Safety timeout: the request's finally block clears it on success.
         const timeoutId = setTimeout(() => {
-            if (loading) {
-                console.error("Load timeout reached");
-                setLoading(false);
-                toast.error("Tempo excedido ao carregar. Tente novamente.");
-            }
+            console.error("Load timeout reached");
+            setLoading(false);
+            toast.error("Tempo excedido ao carregar. Tente novamente.");
         }, 8000);
 
         try {
@@ -71,22 +86,23 @@ const RouteList = () => {
 
 
 
-            const transformedOrders: OrderWithUser[] = data.map((row: any) => ({
+            const rows = (data ?? []) as unknown as RouteOrderRow[];
+            const transformedOrders: OrderWithUser[] = rows.map((row) => ({
                 id: row.order_number || row.id,
-                items: row.items,
-                budget: Number(row.budget),
-                total: Number(row.total),
-                savings: Number(row.savings),
+                items: row.items ?? [],
+                budget: Number(row.budget) || 0,
+                total: Number(row.total) || 0,
+                savings: Number(row.savings) || 0,
                 status: row.status,
                 address: row.address,
-                missingItemPreference: row.missing_item_preference,
+                missingItemPreference: row.missing_item_preference ?? 'substituir',
                 createdAt: row.created_at,
-                estimatedDelivery: row.estimated_delivery,
-                paymentMethod: row.payment_method,
-                installments: row.installments,
+                estimatedDelivery: row.estimated_delivery ?? undefined,
+                paymentMethod: row.payment_method ?? undefined,
+                installments: row.installments ?? undefined,
                 user: {
                     phone: row.user?.phone || 'N/A',
-                    name: row.user?.name,
+                    name: row.user?.name ?? undefined,
                 },
             }));
 
@@ -117,16 +133,19 @@ const RouteList = () => {
             setOrders(ordersWithDist.sort((a, b) => (a.distance || 0) - (b.distance || 0)));
             toast.success("Rota otimizada!");
         } else if (option === 'neighborhood') {
-            setOrders([...orders].sort((a, b) => a.address.neighborhood.localeCompare(b.address.neighborhood)));
+            setOrders([...orders].sort((a, b) =>
+                (a.address?.neighborhood ?? '').localeCompare(b.address?.neighborhood ?? '', 'pt-BR')
+            ));
             toast.success("Agrupado por bairro!");
         } else {
-            // Default: Newest first (actually the query returns oldest first usually for FIFO, but let's stick to created_at)
-            // Re-fetch to reset order properly or just sort by date
-            setOrders([...orders].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+            // FIFO: oldest order first.
+            setOrders([...orders].sort((a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            ));
         }
     };
 
-    const handleStartDelivery = async (e: React.MouseEvent, orderId: string) => {
+    const handleStartDelivery = async (e: MouseEvent, orderId: string) => {
         e.stopPropagation();
 
         // Find order details for message
@@ -149,7 +168,9 @@ const RouteList = () => {
             toast.success("Pedido em rota!");
 
             // 3. Send WhatsApp Notification (Non-blocking)
-            if (order.user?.phone) {
+            const phoneDigits = order.user?.phone?.replace(/\D/g, '') ?? '';
+            if (phoneDigits.length >= 10) {
+                const phone = phoneDigits.startsWith('55') ? phoneDigits : `55${phoneDigits}`;
                 // Fetch templates first
                 fetch(`${BOT_API_URL}/templates`)
                     .then(res => res.json())
@@ -169,7 +190,7 @@ const RouteList = () => {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                phone: order.user.phone,
+                                phone,
                                 message
                             })
                         });
@@ -311,7 +332,7 @@ const RouteList = () => {
 };
 
 // Extracted Component for cleaner code
-const OrderCard = ({ order, isActive, onNavigate, onAction }: { order: OrderWithUser, isActive: boolean, onNavigate: () => void, onAction: (e: any) => void }) => (
+const OrderCard = ({ order, isActive, onNavigate, onAction }: { order: OrderWithUser, isActive: boolean, onNavigate: () => void, onAction: (e: MouseEvent) => void }) => (
     <Card
         className={`border-l-4 shadow-sm hover:shadow-md transition-all active:scale-[0.98] cursor-pointer overflow-hidden ${isActive ? 'border-l-green-500 border-y-green-100 border-r-green-100 bg-green-50/20' : 'border-l-orange-400 border-gray-100'
             }`}
@@ -335,7 +356,7 @@ const OrderCard = ({ order, isActive, onNavigate, onAction }: { order: OrderWith
                             <span className="text-gray-400">{order.address.street}, {order.address.number}</span>
                         </span>
                     </div>
-                    {order.distance && (
+                    {typeof order.distance === 'number' && Number.isFinite(order.distance) && (
                         <div className="text-[10px] text-blue-600 font-medium ml-5">
                             Approx. {order.distance.toFixed(1)} km
                         </div>

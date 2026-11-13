@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,22 +6,23 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, User, Phone, MapPin, Calendar, CreditCard, Package, Pencil, Truck } from 'lucide-react';
 import { OrderEditDialog } from '@/components/admin/OrderEditDialog';
-import { Order } from '@/types';
-import { toast } from '@/hooks/use-toast';
+import { Order, CartItem, Address, PaymentMethod } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 import { calculatePaymentSchedule } from '@/lib/financial';
+import { getPaymentMethodLabel } from '@/lib/payment';
 
 interface LocalOrder {
     id: string;
     order_number: string;
     created_at: string;
     total: number;
-    status: string;
-    items: any[];
-    address?: any;
+    status: Order['status'];
+    items: CartItem[];
+    address: Address;
     delivery_date?: string;
     payment_day?: number;
     payment_date?: string;
-    payment_method?: string;
+    payment_method?: PaymentMethod;
     installments?: number;
     user_id: string;
 }
@@ -35,18 +36,20 @@ interface User {
     last_order_number?: string;
 }
 
-const toGlobalOrder = (local: LocalOrder, user: User): Order => ({
-    id: local.order_number,
-    items: local.items,
+const toGlobalOrder = (local: LocalOrder): Order => ({
+    id: local.order_number || local.id,
+    items: local.items ?? [],
     budget: 0,
-    total: Number(local.total),
+    total: Number(local.total) || 0,
     savings: 0,
-    status: local.status as any,
+    status: local.status,
     address: local.address,
     missingItemPreference: 'substituir',
     createdAt: local.created_at,
     paymentMethod: local.payment_method,
-    installments: local.installments
+    installments: local.installments,
+    paymentDay: local.payment_day,
+    paymentDate: local.payment_date,
 });
 
 export default function OrderDetail() {
@@ -56,35 +59,46 @@ export default function OrderDetail() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+    const { toast } = useToast();
 
-    useEffect(() => {
-        if (orderId) {
-            fetchOrderDetails();
-        }
-    }, [orderId]);
-
-    const fetchOrderDetails = async () => {
+    const fetchOrderDetails = useCallback(async () => {
+        if (!orderId) return;
         try {
-            const { data: orderData, error: orderError } = await supabase
+            setLoading(true);
+
+            let { data: orderData, error: orderError } = await supabase
                 .from('orders')
                 .select('*')
                 .eq('order_number', orderId)
-                .single();
+                .maybeSingle();
+
+            // Deep links may use the UUID instead of the order number.
+            if (!orderData && !orderError && /^[0-9a-f-]{36}$/i.test(orderId)) {
+                const byId = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('id', orderId)
+                    .maybeSingle();
+                orderData = byId.data;
+                orderError = byId.error;
+            }
 
             if (orderError) throw orderError;
+            if (!orderData) {
+                setOrder(null);
+                return;
+            }
 
-            setOrder(orderData);
+            setOrder(orderData as LocalOrder);
 
-            if (orderData?.user_id) {
-                const { data: userData, error: userError } = await supabase
+            if (orderData.user_id) {
+                const { data: userData } = await supabase
                     .from('users')
                     .select('*')
                     .eq('id', orderData.user_id)
-                    .single();
+                    .maybeSingle();
 
-                if (!userError && userData) {
-                    setUser(userData);
-                }
+                if (userData) setUser(userData as User);
             }
         } catch (error) {
             console.error('Error fetching order details:', error);
@@ -96,11 +110,17 @@ export default function OrderDetail() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [orderId, toast]);
+
+    useEffect(() => {
+        void fetchOrderDetails();
+    }, [fetchOrderDetails]);
 
     const handleSaveOrder = async (updatedOrder: Order) => {
         try {
-            const { error } = await supabase
+            if (!order) throw new Error('Pedido não carregado');
+
+            const { data, error } = await supabase
                 .from('orders')
                 .update({
                     items: updatedOrder.items,
@@ -110,9 +130,11 @@ export default function OrderDetail() {
                     installments: updatedOrder.installments,
                     address: updatedOrder.address,
                 })
-                .eq('order_number', updatedOrder.id);
+                .eq('id', order.id)
+                .select('id');
 
             if (error) throw error;
+            if (!data || data.length === 0) throw new Error('Pedido não encontrado');
 
             // Update local state
             if (order) {
@@ -143,7 +165,7 @@ export default function OrderDetail() {
     };
 
     const getStatusBadge = (status: string) => {
-        const variants: Record<string, any> = {
+        const variants: Record<string, 'secondary' | 'default' | 'destructive'> = {
             'processando': 'secondary',
             'separando': 'default',
             'em_rota': 'default',
@@ -154,23 +176,17 @@ export default function OrderDetail() {
         return variants[status] || 'secondary';
     };
 
-    const getPaymentBadgeColor = (method: string) => {
+    const getPaymentBadgeColor = (method?: string) => {
         switch (method) {
-            case 'credit_card': return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'credit_card':
+            case 'cartao': return 'bg-purple-100 text-purple-800 border-purple-200';
             case 'debit_card': return 'bg-blue-100 text-blue-800 border-blue-200';
-            case 'money': return 'bg-green-100 text-green-800 border-green-200';
-            case 'carnet': return 'bg-orange-100 text-orange-800 border-orange-200';
+            case 'money':
+            case 'dinheiro': return 'bg-green-100 text-green-800 border-green-200';
+            case 'carnet':
+            case 'carne': return 'bg-orange-100 text-orange-800 border-orange-200';
+            case 'pix': return 'bg-teal-100 text-teal-800 border-teal-200';
             default: return 'bg-gray-100 text-gray-800 border-gray-200';
-        }
-    };
-
-    const getPaymentMethodLabel = (method: string) => {
-        switch (method) {
-            case 'credit_card': return 'Crédito';
-            case 'debit_card': return 'Débito';
-            case 'money': return 'Dinheiro';
-            case 'carnet': return 'Carnê';
-            default: return method;
         }
     };
 
@@ -201,7 +217,7 @@ export default function OrderDetail() {
                     </div>
                 </div>
                 <Button
-                    onClick={() => user && setEditingOrder(toGlobalOrder(order, user))}
+                    onClick={() => setEditingOrder(toGlobalOrder(order))}
                     className="gap-2"
                 >
                     <Pencil className="h-4 w-4" />
@@ -258,7 +274,10 @@ export default function OrderDetail() {
 
             {/* Payment Schedule */}
             {(() => {
-                const schedule = calculatePaymentSchedule(order, user);
+                const schedule = calculatePaymentSchedule(
+                    { ...order, total: Number(order.total) },
+                    user
+                );
                 if (schedule.length > 0) {
                     return (
                         <Card>
@@ -340,7 +359,7 @@ export default function OrderDetail() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-2">
-                        {order.items?.map((item: any, index: number) => (
+                        {order.items?.map((item: CartItem, index: number) => (
                             <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                                 <div className="flex items-center gap-3">
                                     {item.image && (

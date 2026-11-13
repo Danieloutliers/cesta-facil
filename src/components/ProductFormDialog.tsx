@@ -9,6 +9,8 @@ import { Product } from '@/types';
 import { useCategories, useSubcategories } from '@/hooks/useData';
 import { ProductPriceHistory } from '@/components/admin/ProductPriceHistory';
 import { Search, ExternalLink, Package, DollarSign, Image as ImageIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/lib/errors';
 
 
 interface ProductFormDialogProps {
@@ -34,6 +36,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSave, default
     });
     const [margin, setMargin] = useState<number>(0);
     const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
 
     // Update form data and calculations when product/open changes
     useEffect(() => {
@@ -117,17 +120,56 @@ export function ProductFormDialog({ open, onOpenChange, product, onSave, default
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.name.trim() || !formData.unit.trim()) {
+            toast({
+                title: 'Dados incompletos',
+                description: 'Informe o nome e a unidade do produto.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        if (!Number.isFinite(formData.price) || formData.price <= 0) {
+            toast({
+                title: 'Preço inválido',
+                description: 'O preço de venda deve ser maior que zero.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        if (!formData.image.trim()) {
+            toast({
+                title: 'Imagem obrigatória',
+                description: 'Informe a URL da imagem do produto.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         setLoading(true);
         try {
+            const payload = {
+                ...formData,
+                name: formData.name.trim(),
+                unit: formData.unit.trim(),
+                image: formData.image.trim(),
+                price: Math.round(formData.price * 100) / 100,
+                cost_price: Math.round((formData.cost_price || 0) * 100) / 100,
+            };
+
             if (product) {
-                await onSave({ ...formData, id: product.id } as Product);
+                await onSave({ ...payload, id: product.id } as Product);
             } else {
-                await onSave(formData);
+                await onSave(payload);
             }
             onOpenChange(false);
         } catch (error) {
             console.error('Error saving product:', error);
-            alert('Erro ao salvar produto');
+            toast({
+                title: 'Erro ao salvar produto',
+                description: getErrorMessage(error),
+                variant: 'destructive',
+            });
         } finally {
             setLoading(false);
         }

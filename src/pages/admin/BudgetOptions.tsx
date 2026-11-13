@@ -41,7 +41,9 @@ export default function BudgetOptions() {
     const { toast } = useToast();
 
     useEffect(() => {
-        fetchOptions();
+        void fetchOptions();
+        // Fetch once on mount; mutations call fetchOptions explicitly.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchOptions = async () => {

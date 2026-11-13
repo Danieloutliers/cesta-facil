@@ -33,6 +33,17 @@ export default defineConfig(({ mode }) => ({
         main: path.resolve(__dirname, 'index.html'),
         delivery: path.resolve(__dirname, 'delivery.html'),
       },
+      output: {
+        // Split large, rarely-changing vendors so the app shell stays small
+        // and repeat visits reuse the same cached chunks.
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+          'charts-vendor': ['recharts'],
+          'maps-vendor': ['leaflet', 'react-leaflet'],
+          'xlsx-vendor': ['xlsx'],
+        },
+      },
     },
   },
 }));

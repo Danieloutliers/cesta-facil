@@ -14,23 +14,23 @@ export default function DeliveryLogin() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!phone || phone.length < 10) {
-            toast.error('Digite um número de telefone válido');
+        const cleanPhone = phone.replace(/\D/g, '');
+        if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+            toast.error('Digite um número de telefone válido com DDD');
             return;
         }
 
         setLoading(true);
 
         try {
-            // Save phone to localStorage for simple auth
-            localStorage.setItem('delivery_driver_phone', phone);
+            localStorage.setItem('delivery_driver_phone', cleanPhone);
             localStorage.setItem('delivery_driver_logged_in', 'true');
 
             toast.success('Login efetuado com sucesso!');
-            navigate('/delivery');
+            navigate('/delivery', { replace: true });
         } catch (error) {
             console.error('Login error:', error);
-            toast.error('Erro ao fazer login');
+            toast.error('Não foi possível salvar a sessão neste navegador');
         } finally {
             setLoading(false);
         }

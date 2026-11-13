@@ -26,33 +26,54 @@ import { Order } from "@/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { toDeliveryPaymentMethod } from "@/lib/payment";
 
 const formSchema = z.object({
-    fullName: z.string().min(3, "Nome completo é obrigatório"),
-    cpf: z.string().min(11, "CPF inválido").max(14, "CPF inválido"),
+    fullName: z.string().trim().min(3, "Nome completo é obrigatório"),
+    cpf: z
+        .string()
+        .trim()
+        .refine((value) => value.replace(/\D/g, '').length === 11, "CPF deve ter 11 dígitos"),
     rg: z.string().optional(),
-    phone: z.string().min(10, "Telefone inválido"),
+    phone: z
+        .string()
+        .trim()
+        .refine((value) => {
+            const digits = value.replace(/\D/g, '');
+            return digits.length === 10 || digits.length === 11;
+        }, "Telefone inválido"),
 
     // Address Confirmation
-    street: z.string().min(1, "Rua é obrigatória"),
-    number: z.string().min(1, "Número é obrigatório"),
-    neighborhood: z.string().min(1, "Bairro é obrigatório"),
-    city: z.string().min(1, "Cidade é obrigatória"),
+    street: z.string().trim().min(1, "Rua é obrigatória"),
+    number: z.string().trim().min(1, "Número é obrigatório"),
+    neighborhood: z.string().trim().min(1, "Bairro é obrigatório"),
+    city: z.string().trim().min(1, "Cidade é obrigatória"),
     complement: z.string().optional(),
 
     // Payment
     paymentMethod: z.enum(["pix", "money", "credit_card", "debit_card", "carnet"], {
         required_error: "Selecione a forma de pagamento",
     }),
-    installments: z.string().transform((val) => parseInt(val, 10)).optional(),
+    installments: z.coerce.number().int().min(1, "Parcelamento inválido").max(12).optional(),
     paymentDate: z.date({
         required_error: "Selecione a data de vencimento",
     }).optional(),
+}).superRefine((values, ctx) => {
+    const needsDueDate = values.paymentMethod === 'carnet' || (values.installments ?? 1) > 1;
+    if (needsDueDate && !values.paymentDate) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['paymentDate'],
+            message: 'Selecione a primeira data de vencimento',
+        });
+    }
 });
+
+export type CustomerRegistrationValues = z.infer<typeof formSchema>;
 
 interface CustomerRegistrationFormProps {
     order: Order & { user: { phone: string; name?: string } };
-    onSubmit: (values: z.infer<typeof formSchema>) => Promise<void>;
+    onSubmit: (values: CustomerRegistrationValues) => Promise<void>;
     isLoading: boolean;
 }
 
@@ -67,8 +88,8 @@ export function CustomerRegistrationForm({ order, onSubmit, isLoading }: Custome
         neighborhood: order.address.neighborhood,
         city: order.address.city,
         complement: order.address.complement || "",
-        paymentMethod: (order.paymentMethod as any) || "money",
-        installments: order.installments ? String(order.installments) : "1",
+        paymentMethod: toDeliveryPaymentMethod(order.paymentMethod) as z.infer<typeof formSchema>['paymentMethod'],
+        installments: order.installments && order.installments > 0 ? order.installments : 1,
     };
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -81,8 +102,9 @@ export function CustomerRegistrationForm({ order, onSubmit, isLoading }: Custome
     const installments = form.watch("installments");
 
     // Calculate installment value
-    const installmentValue = installments && parseInt(installments) > 1
-        ? order.total / parseInt(installments)
+    const installmentsCount = Number(installments) || 1;
+    const installmentValue = installmentsCount > 1
+        ? order.total / installmentsCount
         : order.total;
 
 
@@ -281,10 +303,10 @@ export function CustomerRegistrationForm({ order, onSubmit, isLoading }: Custome
                             />
 
                             {/* Installment Calculation Display */}
-                            {installments && parseInt(installments) > 1 && (
+                            {installmentsCount > 1 && (
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                     <p className="text-sm text-green-800 font-medium">
-                                        {installments}x de <span className="text-lg font-bold">R$ {installmentValue.toFixed(2).replace('.', ',')}</span>
+                                        {installmentsCount}x de <span className="text-lg font-bold">R$ {installmentValue.toFixed(2).replace('.', ',')}</span>
                                     </p>
                                     <p className="text-xs text-green-600 mt-1">
                                         Total: R$ {order.total.toFixed(2).replace('.', ',')}

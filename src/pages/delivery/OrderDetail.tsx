@@ -5,14 +5,17 @@ import { Order, CartItem } from "@/types";
 import { generateReceiptMessage } from "@/utils/receipt";
 import { BOT_API_URL } from "@/config/bot";
 import { Button } from "@/components/ui/button";
-import { CustomerRegistrationForm } from "@/components/delivery/CustomerRegistrationForm";
+import { CustomerRegistrationForm, CustomerRegistrationValues } from "@/components/delivery/CustomerRegistrationForm";
 import { ChevronLeft, Package, User } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { onOrderDelivered } from "@/services/referralService";
 
 interface OrderWithUser extends Order {
+    /** Immutable UUID primary key from the database. */
+    rawId?: string;
     user: {
         phone: string;
         name?: string;
@@ -27,7 +30,9 @@ const DeliveryOrderDetail = () => {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        if (id) loadOrder();
+        if (id) void loadOrder();
+        // Reload only when the order id in the URL changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const loadOrder = async () => {
@@ -48,7 +53,8 @@ const DeliveryOrderDetail = () => {
             if (error) throw error;
 
             const transformedOrder: OrderWithUser = {
-                id: data.order_number,
+                id: data.order_number || data.id,
+                rawId: data.id,
                 items: data.items,
                 budget: Number(data.budget),
                 total: Number(data.total),
@@ -75,7 +81,7 @@ const DeliveryOrderDetail = () => {
         }
     };
 
-    const handleRegistrationSubmit = async (values: any) => {
+    const handleRegistrationSubmit = async (values: CustomerRegistrationValues) => {
         if (!order) return;
         setSubmitting(true);
 
@@ -96,36 +102,48 @@ const DeliveryOrderDetail = () => {
 
             if (orderError) throw orderError;
 
+            // Trigger referral release for cash/PIX payments on delivery
+            await onOrderDelivered(order.rawId || order.id);
+
             // 2. Upsert Customer/Consumer Data
 
 
-            const { error: consumerError } = await supabase
+            const consumerPayload = {
+                phone: values.phone.replace(/\D/g, ''),
+                full_name: values.fullName,
+                cpf: values.cpf,
+                rg: values.rg,
+                address: {
+                    street: values.street,
+                    number: values.number,
+                    neighborhood: values.neighborhood,
+                    city: values.city,
+                    complement: values.complement
+                },
+                payment_preference: values.paymentMethod,
+                last_order_total: order.total,
+                last_order_number: order.id,
+                payment_day: values.paymentDate ? values.paymentDate.getDate() : null,
+                payment_date: values.paymentDate ? values.paymentDate.toISOString() : null,
+                last_delivery_date: new Date().toISOString(),
+                last_installments: values.installments
+            };
+
+            // Upsert by phone only works when a unique constraint exists; looking
+            // the customer up first is safe for any schema.
+            const { data: existingConsumer } = await supabase
                 .from('consumers')
-                .upsert({
-                    phone: values.phone,
-                    full_name: values.fullName,
-                    cpf: values.cpf,
-                    rg: values.rg,
-                    address: {
-                        street: values.street,
-                        number: values.number,
-                        neighborhood: values.neighborhood,
-                        city: values.city,
-                        complement: values.complement
-                    },
-                    payment_preference: values.paymentMethod,
-                    last_order_total: order.total,
-                    last_order_number: order.id,
-                    payment_day: values.paymentDate ? values.paymentDate.getDate() : null,
-                    payment_date: values.paymentDate ? values.paymentDate.toISOString() : null,
-                    last_delivery_date: new Date().toISOString(),
-                    last_installments: values.installments
-                }, {
-                    onConflict: 'phone'
-                });
+                .select('id')
+                .eq('phone', consumerPayload.phone)
+                .maybeSingle();
+
+            const { error: consumerError } = existingConsumer
+                ? await supabase.from('consumers').update(consumerPayload).eq('id', existingConsumer.id)
+                : await supabase.from('consumers').insert([consumerPayload]);
 
             if (consumerError) {
                 console.error('❌ Erro ao salvar consumidor:', consumerError);
+                toast.error('Entrega registrada, mas o cadastro do cliente falhou.');
             } else {
 
 
@@ -145,24 +163,28 @@ const DeliveryOrderDetail = () => {
                         const { data: consumerData } = await supabase
                             .from('consumers')
                             .select('id')
-                            .eq('phone', values.phone)
-                            .single();
+                            .eq('phone', values.phone.replace(/\D/g, ''))
+                            .maybeSingle();
 
                         if (consumerData) {
                             const { generateReceivablesData } = await import("@/utils/financial");
                             const receivables = generateReceivablesData(
-                                order.id,
+                                // order_id is a UUID column: always use the database id.
+                                order.rawId || order.id,
                                 consumerData.id,
                                 order.total,
                                 values.installments,
-                                values.paymentDate
+                                values.paymentDate ?? null
                             );
 
                             const { error: finError } = await supabase
                                 .from('receivables')
                                 .insert(receivables);
 
-                            if (finError) console.error("❌ Erro ao gerar contas a receber:", finError);
+                            if (finError) {
+                                console.error("❌ Erro ao gerar contas a receber:", finError);
+                                toast.error('Entrega registrada, mas o financeiro não foi gerado.');
+                            }
                         }
                     } catch (finErr) {
                         console.error("Erro processamento financeiro:", finErr);

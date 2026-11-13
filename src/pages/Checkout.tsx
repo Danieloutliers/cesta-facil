@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Truck, Check, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,19 +15,23 @@ import { Address, PaymentMethod } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { calculateInstallmentTotal } from '@/lib/financial';
 import { cn } from '@/lib/utils';
+import { completeReferralOnOrder } from '@/services/referralService';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, total, budget, savings, addOrder, updateOrder, itemCount, orders, editingOrderId } = useCart();
-  const { user } = useAuth(); // Import useAuth
+  const { items, total, addOrder, updateOrder, itemCount, orders, editingOrderId } = useCart();
+  const { user } = useAuth();
   const [step, setStep] = useState<'address' | 'preferences' | 'success'>('address');
   const [missingPreference, setMissingPreference] = useState<'substituir' | 'remover'>('substituir');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   const [installments, setInstallments] = useState(1);
   const [rates, setRates] = useState({ rate1to2: 0, rate3to5: 0 });
   const [loading, setLoading] = useState(false);
+  const [wasEditing, setWasEditing] = useState(false);
   const [showSummaryInPayment, setShowSummaryInPayment] = useState(false);
   const { toast } = useToast();
+  const prefillDoneRef = useRef(false);
+  const submitLockRef = useRef(false);
   const [address, setAddress] = useState<Address>({
     cep: '46430-000', // CEP Geral de Guanambi
     street: '',
@@ -38,28 +42,46 @@ const Checkout = () => {
     state: 'BA',
   });
 
-  const loadSettings = async () => {
-    const { data } = await supabase.from('settings').select('*');
-    if (data) {
-      const settingsObj: any = {};
-      data.forEach(item => settingsObj[item.key] = item.value);
-      setRates({
-        rate1to2: settingsObj.installmentRate1to2 || 0,
-        rate3to5: settingsObj.installmentRate3to5 || 0
-      });
-    }
-  };
-
-  // Load address from user profile OR last order
   useEffect(() => {
-    loadSettings(); // Load settings on mount
+    let cancelled = false;
 
-    // Priority 1: User Profile Address
-    if (user?.address && (user.address.street || user.address.neighborhood)) {
+    const loadSettings = async () => {
+      const { data, error } = await supabase.from('settings').select('*');
+      if (error || !data || cancelled) return;
+
+      const settingsObj: Record<string, unknown> = {};
+      data.forEach((item) => {
+        settingsObj[item.key] = item.value;
+      });
+
+      const rate1to2 = Number(settingsObj.installmentRate1to2);
+      const rate3to5 = Number(settingsObj.installmentRate3to5);
+
+      setRates({
+        rate1to2: Number.isFinite(rate1to2) ? rate1to2 : 0,
+        rate3to5: Number.isFinite(rate3to5) ? rate3to5 : 0,
+      });
+    };
+
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Prefill the address only once, so background order refreshes never
+  // overwrite what the customer is currently typing.
+  useEffect(() => {
+    if (prefillDoneRef.current || !user) return;
+
+    const hasProfileAddress = Boolean(user.address && (user.address.street || user.address.neighborhood));
+    const lastOrderAddress = orders[0]?.address;
+
+    if (hasProfileAddress && user.address) {
+      prefillDoneRef.current = true;
       setAddress((prev) => ({
         ...prev,
         ...user.address,
-        // Enforce Guanambi/BA
         city: 'Guanambi',
         state: 'BA',
         cep: '46430-000',
@@ -69,36 +91,53 @@ const Checkout = () => {
         description: "Carregamos o endereço salvo no seu perfil.",
         duration: 3000,
       });
+    } else if (lastOrderAddress && (lastOrderAddress.street || lastOrderAddress.neighborhood)) {
+      prefillDoneRef.current = true;
+      setAddress((prev) => ({
+        ...prev,
+        ...lastOrderAddress,
+        city: 'Guanambi',
+        state: 'BA',
+        cep: '46430-000',
+      }));
+      toast({
+        title: "Endereço Anterior",
+        description: "Carregamos o endereço do seu último pedido.",
+        duration: 3000,
+      });
     }
-    // Priority 2: Last Order Address (if profile is empty)
-    else if (orders.length > 0) {
-      const lastOrder = orders[0];
-      if (lastOrder.address) {
-        setAddress((prev) => ({
-          ...prev,
-          ...lastOrder.address,
-          city: 'Guanambi',
-          state: 'BA',
-          cep: '46430-000',
-        }));
+  }, [user, orders, toast]);
 
-        toast({
-          title: "Endereço Anterior",
-          description: "Carregamos o endereço do seu último pedido.",
-          duration: 3000,
-        });
-      }
+  // Only "carnê" can be split; reset installments when another method is chosen.
+  useEffect(() => {
+    if (paymentMethod && paymentMethod !== 'carne' && paymentMethod !== 'carnet') {
+      setInstallments(1);
     }
-  }, [user, orders, toast]); // Keep existing dependencies for address loading
+  }, [paymentMethod]);
 
   const handleAddressChange = (field: keyof Address, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }));
   };
 
-  const isAddressValid = address.street && address.number && address.neighborhood;
+  const knownCategories = ['alimentos', 'bebidas', 'limpeza', 'higiene'];
+  const otherItems = items.filter((item) => !knownCategories.includes(item.category));
+
+  const isAddressValid = Boolean(
+    address.street.trim() && address.number.trim() && address.neighborhood.trim()
+  );
 
   const handleSubmit = async () => {
-    if (step === 'address' && isAddressValid) {
+    if (submitLockRef.current) return;
+
+    if (step === 'address') {
+      if (!isAddressValid) {
+        toast({
+          title: 'Endereço incompleto',
+          description: 'Preencha bairro, rua e número para continuar.',
+          variant: 'destructive',
+        });
+        return;
+      }
       setStep('preferences');
     } else if (step === 'preferences') {
       if (!paymentMethod) {
@@ -111,39 +150,65 @@ const Checkout = () => {
         return;
       }
 
+      submitLockRef.current = true;
       try {
         setLoading(true);
 
-        let finalTotal = undefined;
+        const cleanAddress: Address = {
+          ...address,
+          street: address.street.trim(),
+          number: address.number.trim(),
+          neighborhood: address.neighborhood.trim(),
+          complement: address.complement?.trim() || '',
+        };
+
+        let finalTotal: number | undefined;
         if (paymentMethod === 'carne') {
           const { totalWithInterest } = calculateInstallmentTotal(total, installments, rates);
-          // Only send custom total if there is actual interest applied to diff from original
-          if (totalWithInterest !== total) {
-            finalTotal = totalWithInterest;
+          // Only send a custom total when interest actually changes the amount.
+          if (Math.abs(totalWithInterest - total) > 0.001) {
+            finalTotal = Math.round(totalWithInterest * 100) / 100;
           }
         }
 
         if (editingOrderId) {
-          await updateOrder(address, missingPreference, paymentMethod, installments, finalTotal);
+          setWasEditing(true);
+          await updateOrder(cleanAddress, missingPreference, paymentMethod, installments, finalTotal);
         } else {
-          await addOrder(address, missingPreference, paymentMethod, installments, finalTotal);
+          const createdOrder = await addOrder(cleanAddress, missingPreference, paymentMethod, installments, finalTotal);
+          if (createdOrder && user) {
+            try {
+              await completeReferralOnOrder(
+                { id: user.id, name: user.name, phone: user.phone },
+                {
+                  id: createdOrder.id,
+                  order_number: createdOrder.id,
+                  total: Number(finalTotal ?? total),
+                  payment_method: paymentMethod,
+                  installments: installments
+                }
+              );
+            } catch (refErr) {
+              console.warn('Error completing referral on checkout:', refErr);
+            }
+          }
         }
         setStep('success');
       } catch (error) {
         toast({
           title: editingOrderId ? 'Erro ao atualizar pedido' : 'Erro ao criar pedido',
-          description: 'Tente novamente mais tarde.',
+          description: error instanceof Error ? error.message : 'Tente novamente mais tarde.',
           variant: 'destructive',
         });
       } finally {
         setLoading(false);
+        submitLockRef.current = false;
       }
     }
   };
 
   if (itemCount === 0 && step !== 'success') {
-    navigate('/montar-cesta');
-    return null;
+    return <Navigate to="/montar-cesta" replace />;
   }
 
   return (
@@ -166,10 +231,10 @@ const Checkout = () => {
                 <Check className="h-10 w-10 text-green-600 dark:text-green-400 relative z-10" />
               </div>
               <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-600">
-                {editingOrderId ? 'Pedido Atualizado!' : 'Pedido Confirmado!'}
+                {wasEditing ? 'Pedido Atualizado!' : 'Pedido Confirmado!'}
               </h1>
               <p className="text-muted-foreground mb-10 max-w-md mx-auto text-lg leading-relaxed">
-                {editingOrderId
+                {wasEditing
                   ? 'Seu pedido foi atualizado com sucesso.'
                   : 'Seu pedido foi recebido com sucesso. Em breve entraremos em contato para confirmar a entrega.'}
               </p>
@@ -418,6 +483,38 @@ const Checkout = () => {
                             ))}
                           </div>
                         )}
+
+                        {/* Outros: categorias personalizadas criadas no painel admin */}
+                        {otherItems.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-2 mb-2 pt-2">
+                              <div className="h-px flex-1 bg-border/60" />
+                              Outros
+                              <div className="h-px flex-1 bg-border/60" />
+                            </h4>
+                            {otherItems.map((item) => (
+                              <div key={item.id} className="flex items-center gap-3 group">
+                                <div className="relative">
+                                  <img
+                                    src={item.image}
+                                    alt={item.name}
+                                    className="h-12 w-12 rounded-xl object-cover ring-1 ring-border shadow-sm group-hover:scale-105 transition-transform"
+                                  />
+                                  <div className="absolute -top-2 -left-2 bg-background border shadow-xs text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full z-10">
+                                    {item.quantity}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{item.name}</p>
+                                  <p className="text-xs text-muted-foreground">Unit: R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                                </div>
+                                <p className="text-sm font-semibold">
+                                  R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div className="border-t border-dashed border-border/60 pt-6 space-y-3">
@@ -438,7 +535,7 @@ const Checkout = () => {
                             <span className="block text-2xl font-black text-primary tracking-tight">
                               R$ {total.toFixed(2).replace('.', ',')}
                             </span>
-                            <span className="text-xs text-muted-foreground">em até 3x sem juros</span>
+                            <span className="text-xs text-muted-foreground">parcelamento no pagamento</span>
                           </div>
                         </div>
                       </div>

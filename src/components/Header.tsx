@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Notifications } from '@/components/Notifications';
+import { formatPhone } from '@/lib/phone';
 
 export function Header() {
   const { itemCount } = useCart();
@@ -69,7 +70,7 @@ export function Header() {
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-foreground/10">
               <User className="h-4 w-4 text-primary-foreground" />
               <span className="text-sm text-primary-foreground font-medium">
-                {user.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+                {formatPhone(user.phone)}
               </span>
             </div>
           ) : (

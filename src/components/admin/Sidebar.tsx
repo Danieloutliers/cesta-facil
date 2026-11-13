@@ -12,10 +12,12 @@ import {
     ChevronLeft,
     ChevronRight,
     Store,
+    Gift,
     DollarSign,
     Image,
     Bot,
-    X
+    X,
+    ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
@@ -54,10 +56,10 @@ const navGroups: NavGroup[] = [
         ]
     },
     {
-        label: 'Vendas & Clientes',
+        label: 'Vendas & Operações',
         items: [
             {
-                title: 'Pedidos',
+                title: 'Esteira de Pedidos',
                 href: '/admin/orders',
                 icon: ShoppingBag
             },
@@ -70,6 +72,11 @@ const navGroups: NavGroup[] = [
                 title: 'Financeiro',
                 href: '/admin/financial',
                 icon: DollarSign
+            },
+            {
+                title: 'Indicações',
+                href: '/admin/referrals',
+                icon: Gift
             }
         ]
     },
@@ -99,7 +106,7 @@ const navGroups: NavGroup[] = [
         ]
     },
     {
-        label: 'Sistema',
+        label: 'Comunicação & IA',
         items: [
             {
                 title: 'WhatsApp',
@@ -107,7 +114,7 @@ const navGroups: NavGroup[] = [
                 icon: MessageCircle
             },
             {
-                title: 'Chat',
+                title: 'Chat em Tempo Real',
                 href: '/admin/chat',
                 icon: MessageCircle
             },
@@ -134,6 +141,9 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
         if (mobileOpen && onMobileClose) {
             onMobileClose();
         }
+        // Close the drawer only when the route changes; re-running for each parent
+        // render would fight the open/close animation.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
     // Prevent body scroll when mobile sidebar is open
@@ -149,11 +159,27 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     }, [mobileOpen]);
 
     const SidebarContent = () => (
-        <>
-            {/* Header */}
-            <div className="flex h-16 items-center justify-between border-b px-4">
-                {(!collapsed || mobileOpen) && (
-                    <h2 className="text-lg font-semibold">Admin Panel</h2>
+        <div className="flex flex-col h-full bg-card text-card-foreground select-none">
+            {/* Header / Brand */}
+            <div className="flex h-16 items-center justify-between border-b border-border/70 px-4">
+                {(!collapsed || mobileOpen) ? (
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className="h-8 w-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0 font-bold text-sm border border-primary/25 shadow-xs">
+                            MF
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-semibold tracking-tight text-foreground truncate">
+                                Mercado Fácil
+                            </span>
+                            <span className="text-[11px] text-muted-foreground truncate">
+                                Painel de Controle
+                            </span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mx-auto h-8 w-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-sm border border-primary/25">
+                        MF
+                    </div>
                 )}
 
                 {/* Desktop: Collapse button */}
@@ -161,7 +187,8 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
                     variant="ghost"
                     size="icon"
                     onClick={() => setCollapsed(!collapsed)}
-                    className={cn('hidden md:flex', !collapsed && 'ml-auto')}
+                    className={cn('hidden md:inline-flex h-8 w-8 text-muted-foreground hover:text-foreground', !collapsed && 'ml-auto')}
+                    aria-label={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
                 >
                     {collapsed ? (
                         <ChevronRight className="h-4 w-4" />
@@ -175,61 +202,82 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
                     variant="ghost"
                     size="icon"
                     onClick={onMobileClose}
-                    className="md:hidden ml-auto"
+                    className="md:hidden ml-auto h-8 w-8 text-muted-foreground"
+                    aria-label="Fechar menu"
                 >
                     <X className="h-5 w-5" />
                 </Button>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 space-y-4 px-2 py-4 overflow-y-auto">
+            {/* Navigation links */}
+            <nav className="flex-1 space-y-5 px-3 py-4 overflow-y-auto">
                 {navGroups.map((group, groupIndex) => (
                     <div key={groupIndex} className="space-y-1">
                         {(!collapsed || mobileOpen) && (
-                            <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                            <h3 className="px-2 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
                                 {group.label}
                             </h3>
                         )}
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             {group.items.map((item) => {
                                 const Icon = item.icon;
-                                const isActive = location.pathname === item.href;
+                                const isActive = location.pathname === item.href ||
+                                    (item.href !== '/admin' && location.pathname.startsWith(item.href));
 
                                 return (
                                     <Link
                                         key={item.href}
                                         to={item.href}
                                         className={cn(
-                                            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
-                                            'hover:bg-primary/10 hover:text-primary',
+                                            'group relative flex items-center gap-3 rounded-md px-2.5 py-2 text-xs font-medium transition-all duration-150',
                                             isActive
-                                                ? 'bg-primary/10 text-primary shadow-sm'
-                                                : 'text-muted-foreground',
-                                            collapsed && !mobileOpen && 'justify-center px-2'
+                                                ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                                                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                                            collapsed && !mobileOpen && 'justify-center px-2 py-2.5'
                                         )}
                                         title={collapsed && !mobileOpen ? item.title : undefined}
                                     >
-                                        <Icon className="h-5 w-5 flex-shrink-0" />
-                                        {(!collapsed || mobileOpen) && <span>{item.title}</span>}
+                                        <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground')} />
+                                        {(!collapsed || mobileOpen) && <span className="truncate">{item.title}</span>}
                                     </Link>
                                 );
                             })}
                         </div>
-                        {groupIndex < navGroups.length - 1 && collapsed && !mobileOpen && (
-                            <div className="my-2 border-t border-border/50" />
-                        )}
                     </div>
                 ))}
             </nav>
 
+            {/* Quick Link to Public Store */}
+            {(!collapsed || mobileOpen) && (
+                <div className="px-3 py-2 border-t border-border/60">
+                    <Link
+                        to="/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    >
+                        <span className="flex items-center gap-2 truncate">
+                            <Store className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            Ver Loja Online
+                        </span>
+                        <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+                    </Link>
+                </div>
+            )}
+
             {/* Footer */}
-            <div className="border-t p-4">
+            <div className="border-t border-border/70 p-3 bg-muted/20">
                 <div className={cn('flex items-center', (collapsed && !mobileOpen) ? 'justify-center' : 'justify-between')}>
-                    {(!collapsed || mobileOpen) && <span className="text-xs text-muted-foreground">v1.0.0</span>}
+                    {(!collapsed || mobileOpen) && (
+                        <div className="flex flex-col">
+                            <span className="text-xs font-medium text-foreground">Admin Cesta Fácil</span>
+                            <span className="text-[10px] text-muted-foreground tabular-nums">Versão 2.4</span>
+                        </div>
+                    )}
                     <ThemeToggle />
                 </div>
             </div>
-        </>
+        </div>
     );
 
     return (
@@ -237,30 +285,30 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
             {/* Mobile Overlay */}
             {mobileOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200"
                     onClick={onMobileClose}
                 />
             )}
 
             {/* Desktop Sidebar */}
-            <div
+            <aside
                 className={cn(
-                    'hidden md:flex relative flex-col border-r bg-background transition-all duration-300',
+                    'hidden md:flex relative flex-col border-r border-border/80 bg-card transition-all duration-300 ease-in-out shrink-0 z-20',
                     collapsed ? 'w-16' : 'w-64'
                 )}
             >
                 <SidebarContent />
-            </div>
+            </aside>
 
             {/* Mobile Sidebar (Drawer) */}
-            <div
+            <aside
                 className={cn(
-                    'fixed top-0 left-0 bottom-0 z-50 w-64 bg-background border-r transition-transform duration-300 md:hidden flex flex-col',
+                    'fixed top-0 left-0 bottom-0 z-50 w-72 max-w-[85vw] bg-card border-r border-border transition-transform duration-300 ease-in-out md:hidden flex flex-col shadow-2xl',
                     mobileOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
                 <SidebarContent />
-            </div>
+            </aside>
         </>
     );
 }

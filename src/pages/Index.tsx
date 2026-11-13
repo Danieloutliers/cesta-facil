@@ -32,16 +32,18 @@ const Index = () => {
 
     // Show error message if redirected from admin route
     useEffect(() => {
-        if (location.state?.error) {
-            toast({
-                variant: "destructive",
-                title: "Acesso Negado",
-                description: location.state.error,
-            });
-            // Clear the error from state
-            window.history.replaceState({}, document.title);
-        }
-    }, [location.state, toast]);
+        const errorMessage = (location.state as { error?: string } | null)?.error;
+        if (!errorMessage) return;
+
+        toast({
+            variant: "destructive",
+            title: "Acesso Negado",
+            description: errorMessage,
+        });
+
+        // Clear only our own state, preserving React Router's history entry.
+        navigate(location.pathname + location.search, { replace: true, state: null });
+    }, [location.state, location.pathname, location.search, navigate, toast]);
 
     const handleBudgetSelect = (option: { value: number, label: string }) => {
         setSelectedOption(option);

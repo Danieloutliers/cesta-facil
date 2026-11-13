@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Category } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/lib/errors';
 
 interface CategoryFormDialogProps {
     open: boolean;
@@ -18,6 +20,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSave }: Cat
         icon: '',
     });
     const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
 
     // Update form data when category changes or dialog opens
     useEffect(() => {
@@ -49,7 +52,11 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSave }: Cat
             setFormData({ label: '', icon: '' });
         } catch (error) {
             console.error('Error saving category:', error);
-            alert('Erro ao salvar categoria');
+            toast({
+                title: 'Erro ao salvar categoria',
+                description: getErrorMessage(error),
+                variant: 'destructive',
+            });
         } finally {
             setLoading(false);
         }

@@ -12,8 +12,6 @@ export function MobileNavBar() {
   const { user, isAdmin, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  if (!user) return null;
-
   const navItems = [
     {
       href: '/',
@@ -28,12 +26,19 @@ export function MobileNavBar() {
       isCenter: true,
       badge: itemCount > 0 ? itemCount : undefined
     },
-    {
-      href: '/historico',
-      label: 'Pedidos',
-      icon: History,
-      isCenter: false
-    },
+    user
+      ? {
+          href: '/historico',
+          label: 'Pedidos',
+          icon: History,
+          isCenter: false
+        }
+      : {
+          href: '/login',
+          label: 'Entrar',
+          icon: User,
+          isCenter: false
+        },
     ...(isAdmin ? [{
       href: '#menu',
       label: 'Admin',

@@ -12,7 +12,11 @@ const CartPanelComponent = () => {
     const navigate = useNavigate();
     const { items, total, budget, remaining, itemCount, isOverBudget, removeItem, updateQuantity } = useCart();
 
-    const progressPercentage = Math.min((total / budget) * 100, 100);
+    // Guard against a zero/invalid budget (old localStorage or API data),
+    // which would otherwise produce NaN/Infinity and break the progress bar.
+    const progressPercentage = budget > 0
+        ? Math.min(Math.max((total / budget) * 100, 0), 100)
+        : 0;
 
     // Dynamic progress bar color "heating up" logic
     const getProgressColor = (percent: number) => {
@@ -200,7 +204,7 @@ const CartPanelComponent = () => {
                                             <span className="bg-background px-1.5 py-0.5 rounded text-[10px] font-medium border border-border/50">
                                                 {item.unit}
                                             </span>
-                                            <span>Subtotal: <span className="text-primary font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span></span>
+                                            <span>Subtotal: <span className="text-primary font-bold">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</span></span>
                                         </div>
                                     </div>
 
@@ -209,6 +213,7 @@ const CartPanelComponent = () => {
                                             <button
                                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                                 className="w-8 h-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-l-lg transition-colors"
+                                                aria-label={`Diminuir quantidade de ${item.name}`}
                                             >
                                                 -
                                             </button>
@@ -218,6 +223,7 @@ const CartPanelComponent = () => {
                                             <button
                                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                                 className="w-8 h-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-r-lg transition-colors"
+                                                aria-label={`Aumentar quantidade de ${item.name}`}
                                             >
                                                 +
                                             </button>
@@ -225,7 +231,8 @@ const CartPanelComponent = () => {
 
                                         <button
                                             onClick={() => removeItem(item.id)}
-                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 opacity-100"
+                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm opacity-100"
+                                            aria-label={`Remover ${item.name} da cesta`}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>

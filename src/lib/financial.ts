@@ -38,9 +38,9 @@ export const calculatePaymentSchedule = (
     const installmentValue = total / installmentsCount;
 
     if (paymentDate) {
-        let currentMonth = paymentDate.getMonth();
-        let currentYear = paymentDate.getFullYear();
-        let day = paymentDate.getDate();
+        const currentMonth = paymentDate.getMonth();
+        const currentYear = paymentDate.getFullYear();
+        const day = paymentDate.getDate();
 
         for (let i = 0; i < installmentsCount; i++) {
             // Calculate next month correctly handling flow (e.g. Jan 31 -> Feb 28)
@@ -59,10 +59,10 @@ export const calculatePaymentSchedule = (
     const baseDate = order.delivery_date || order.estimatedDelivery || order.created_at || order.createdAt;
     if (!baseDate) return [];
 
-    let currentDate = new Date(baseDate);
+    const currentDate = new Date(baseDate);
 
     // Logic: First due date is the next occurrence of payment_day
-    let targetYear = currentDate.getFullYear();
+    const targetYear = currentDate.getFullYear();
     let targetMonth = currentDate.getMonth();
 
     if (currentDate.getDate() >= (paymentDay as number)) {
@@ -87,9 +87,12 @@ export const calculateInstallmentTotal = (
 ) => {
     let rate = 0;
 
-    if (installments >= 1 && installments <= 2) {
+    // Paying in a single installment is always interest-free.
+    if (installments <= 1) {
+        rate = 0;
+    } else if (installments <= 2) {
         rate = rates.rate1to2;
-    } else if (installments >= 3 && installments <= 5) {
+    } else if (installments <= 5) {
         rate = rates.rate3to5;
     }
 

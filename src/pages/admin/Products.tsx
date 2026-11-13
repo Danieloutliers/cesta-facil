@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,7 +34,14 @@ import { Plus, Search, Pencil, Trash2, Package, LayoutList, LayoutGrid, Link, Fi
 import { useProducts, useCategories, createProduct, updateProduct, deleteProduct, deleteProductsBulk } from '@/hooks/useData';
 import { ProductFormDialog } from '@/components/ProductFormDialog';
 import { BulkUpdateDialog } from '@/components/admin/BulkUpdateDialog';
-import { ImportProductsDialog } from '@/components/admin/ImportProductsDialog';
+
+// The import dialog pulls in the heavy XLSX parser; load it on demand so the
+// products page stays light for day-to-day use.
+const ImportProductsDialog = lazy(() =>
+  import('@/components/admin/ImportProductsDialog').then((module) => ({
+    default: module.ImportProductsDialog,
+  }))
+);
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -609,11 +616,15 @@ const Products = () => {
         onSuccess={refetch}
       />
 
-      <ImportProductsDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        onSuccess={refetch}
-      />
+      {importDialogOpen && (
+        <Suspense fallback={null}>
+          <ImportProductsDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            onSuccess={refetch}
+          />
+        </Suspense>
+      )}
 
       {/* Single product deletion dialog */}
       <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>

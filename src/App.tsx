@@ -2,14 +2,28 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Loading } from "@/components/Loading";
+
+// Global Referral tracker that persists ?ref= across navigation
+const ReferralTracker = () => {
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const ref = searchParams.get('ref') || searchParams.get('indicacao') || searchParams.get('codigo');
+    if (ref) {
+      const clean = ref.trim().toUpperCase();
+      localStorage.setItem('cesta_referral_code', clean);
+      sessionStorage.setItem('cesta_referral_code', clean);
+    }
+  }, [searchParams]);
+  return null;
+};
 
 // Lazy loading pages
 const Index = lazy(() => import("./pages/Index"));
@@ -35,6 +49,7 @@ const Banners = lazy(() => import("./pages/admin/Banners"));
 const AISettings = lazy(() => import("./pages/admin/AISettings"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
+const Referrals = lazy(() => import("./pages/admin/Referrals"));
 // Delivery Routes
 const DeliveryLayout = lazy(() => import("@/layouts/DeliveryLayout"));
 const RouteList = lazy(() => import("@/pages/delivery/RouteList"));
@@ -53,6 +68,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <ReferralTracker />
               <Suspense fallback={<Loading />}>
                 <Routes>
                   <Route path="/" element={<Index />} />
@@ -77,6 +93,7 @@ const App = () => (
                     <Route path="customers/:id" element={<CustomerDetails />} />
                     <Route path="orders/:orderId" element={<OrderDetail />} />
                     <Route path="financial" element={<Financial />} />
+                    <Route path="referrals" element={<Referrals />} />
                     <Route path="whatsapp" element={<WhatsappConnect />} />
                     <Route path="chat" element={<Chat />} />
                     <Route path="ai-settings" element={<AISettings />} />

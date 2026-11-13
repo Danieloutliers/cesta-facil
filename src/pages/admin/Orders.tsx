@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Order, CartItem, Address } from '@/types';
 import {
@@ -15,15 +15,33 @@ import {
     ShoppingBag,
     MessageCircle,
     XCircle,
-    Pencil
+    Pencil,
+    LayoutList,
+    Kanban,
+    Search,
+    Filter,
+    Download,
+    Plus,
+    Printer,
+    DollarSign,
+    RefreshCw,
+    Calendar,
+    ArrowUpDown,
+    Check,
+    CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderEditDialog } from '@/components/admin/OrderEditDialog';
+import { ReceiptModal } from '@/components/admin/ReceiptModal';
+import { Link } from 'react-router-dom';
+import { onOrderDelivered } from '@/services/referralService';
 import {
     DndContext,
     DragOverlay,
@@ -41,6 +59,8 @@ import { ToastAction } from '@/components/ui/toast';
 import { sendWhatsAppMessage, getWhatsAppMessage } from '@/lib/whatsapp';
 
 interface OrderWithUser extends Order {
+    rawId?: string;
+    deliveryDate?: string;
     user: {
         phone: string;
         name?: string;
@@ -50,39 +70,65 @@ interface OrderWithUser extends Order {
 const statusConfig = {
     processando: {
         label: 'Processando',
-        color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+        accentBar: 'bg-amber-500',
+        color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800',
+        badgeBg: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800',
+        textColor: 'text-amber-700 dark:text-amber-400',
         icon: Clock,
-        next: 'separando'
+        next: 'separando' as const
     },
     separando: {
         label: 'Separando',
-        color: 'bg-blue-50 text-blue-700 border-blue-200',
+        accentBar: 'bg-blue-500',
+        color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-800',
+        badgeBg: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
+        textColor: 'text-blue-700 dark:text-blue-400',
         icon: Package,
-        next: 'em_rota'
+        next: 'em_rota' as const
     },
     em_rota: {
         label: 'Em Rota',
-        color: 'bg-purple-50 text-purple-700 border-purple-200',
+        accentBar: 'bg-purple-500',
+        color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-800',
+        badgeBg: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800',
+        textColor: 'text-purple-700 dark:text-purple-400',
         icon: MapPin,
-        next: 'entregue'
+        next: 'entregue' as const
     },
     entregue: {
         label: 'Entregue',
-        color: 'bg-green-50 text-green-700 border-green-200',
+        accentBar: 'bg-emerald-500',
+        color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800',
+        badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800',
+        textColor: 'text-emerald-700 dark:text-emerald-400',
         icon: CheckCircle2,
         next: null
     },
     cancelado: {
         label: 'Cancelado',
-        color: 'bg-red-50 text-red-700 border-red-200',
+        accentBar: 'bg-red-500',
+        color: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-300 dark:border-red-800',
+        badgeBg: 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800',
+        textColor: 'text-red-700 dark:text-red-400',
         icon: XCircle,
         next: null
     },
 };
 
-
-// --- Draggable Card Component ---
-const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOrder, setExpandedOrder, onEdit }: any) => {
+// --- Draggable Kanban Card Component ---
+const DraggableOrderCard = ({
+    order,
+    updateOrderStatus,
+    expandedOrder,
+    setExpandedOrder,
+    onEdit
+}: {
+    order: OrderWithUser;
+    updateOrderStatus: (orderId: string, newStatus: Order['status']) => void;
+    expandedOrder: string | null;
+    setExpandedOrder: (id: string | null) => void;
+    onEdit: (order: Order) => void;
+}) => {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: order.id,
         data: { order }
@@ -92,147 +138,268 @@ const DraggableOrderCard = ({ order, statusConfig, updateOrderStatus, expandedOr
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     } : undefined;
 
-    const config = statusConfig[order.status as keyof typeof statusConfig];
+    const config = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.processando;
+    const isExpanded = expandedOrder === order.id;
+
+    const formatPaymentMethod = (method?: string) => {
+        if (!method) return 'A Combinar';
+        if (method === 'carne') return 'Carnê Digital';
+        if (method === 'pix') return 'PIX';
+        if (method === 'cartao') return 'Cartão';
+        if (method === 'dinheiro') return 'Dinheiro';
+        return method;
+    };
 
     return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn("touch-none", isDragging && "opacity-50 z-50")}>
-            <Card className="bg-white shadow-sm hover:shadow-md transition-shadow border-gray-100 cursor-move">
-                <CardHeader className="p-4 pb-2 space-y-2">
-                    <div className="flex justify-between items-start">
-                        <Badge variant="outline" className="font-mono text-xs">
-                            {order.id.slice(-6)}
-                        </Badge>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-green-600">
-                                R$ {order.total.toFixed(2).replace('.', ',')}
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...listeners}
+            {...attributes}
+            className={cn(
+                "touch-none group/card",
+                isDragging && "opacity-30 scale-95 z-50 pointer-events-none"
+            )}
+        >
+            <div className={cn(
+                "relative bg-card rounded-xl border transition-all duration-200 overflow-hidden shadow-xs hover:shadow-md hover:border-primary/40",
+                isExpanded ? "border-primary/50 shadow-sm ring-1 ring-primary/20" : "border-border/80"
+            )}>
+                {/* Thin top status indicator bar */}
+                <div className={cn("h-1 w-full transition-opacity", config.accentBar)} />
+
+                <div className="p-3.5 space-y-2.5">
+                    {/* Header: Order ID + Total */}
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-mono text-xs font-bold text-foreground bg-muted/60 dark:bg-muted/40 px-2 py-0.5 rounded-md border border-border/60">
+                                #{order.id.slice(-6)}
                             </span>
+                            {order.paymentMethod && (
+                                <span className="text-[10px] font-medium text-muted-foreground truncate">
+                                    {formatPaymentMethod(order.paymentMethod)}
+                                    {order.installments && order.installments > 1 ? ` (${order.installments}x)` : ''}
+                                </span>
+                            )}
                         </div>
+
+                        <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums shrink-0">
+                            R$ {order.total.toFixed(2).replace('.', ',')}
+                        </span>
                     </div>
 
+                    {/* Customer & Location */}
                     <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            <span className="truncate">{order.user.name || 'Cliente sem nome'}</span>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
+                            <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{order.user.name || 'Cliente'}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3" />
-                            <span className="truncate max-w-[200px]">
-                                {order.address.neighborhood}, {order.address.city}
+
+                        {order.address && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                <MapPin className="h-3 w-3 shrink-0 opacity-70" />
+                                <span className="truncate">
+                                    {order.address.neighborhood || order.address.city || 'Endereço não informado'}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Unboxed Metadata Line with typographic separators */}
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pt-0.5">
+                            <span className="tabular-nums font-medium text-foreground/80">
+                                {order.items?.length || 0} {order.items?.length === 1 ? 'item' : 'itens'}
                             </span>
+                            <span aria-hidden="true" className="opacity-40">·</span>
+                            <span className="tabular-nums">
+                                {new Date(order.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {order.deliveryDate && (
+                                <>
+                                    <span aria-hidden="true" className="opacity-40">·</span>
+                                    <span className="text-blue-600 dark:text-blue-400 font-medium">
+                                        Entrega: {new Date(order.deliveryDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                    </span>
+                                </>
+                            )}
                         </div>
                     </div>
-                </CardHeader>
 
-                <CardContent className="p-4 pt-2">
-                    <div className="border-t pt-3 mt-2 space-y-3">
-                        {/* Quick Action Button (Clickable, stop propagation for drag) */}
+                    {/* Actions and Workflow Step */}
+                    <div className="border-t border-border/60 pt-2.5 space-y-2">
                         {config.next && (
                             <Button
-                                className="w-full h-8 text-xs bg-primary/90 hover:bg-primary cursor-pointer"
+                                size="sm"
+                                className="w-full h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer shadow-xs gap-1.5 font-medium transition-all"
                                 onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => updateOrderStatus(order.id, config.next)}
+                                onClick={() => updateOrderStatus(order.id, config.next!)}
                             >
-                                Mover para {statusConfig[config.next as keyof typeof statusConfig].label}
-                                <ArrowRight className="h-3 w-3 ml-2" />
+                                <span>Avançar para {statusConfig[config.next].label}</span>
+                                <ArrowRight className="h-3 w-3" />
                             </Button>
                         )}
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full h-8 text-xs text-muted-foreground cursor-pointer"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                        >
-                            {expandedOrder === order.id ? 'Ocultar detalhes' : 'Ver detalhes'}
-                        </Button>
+                        <div className="flex items-center justify-between gap-1.5">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                            >
+                                <ChevronDown className={cn("h-3 w-3 mr-1 transition-transform duration-200", isExpanded && "rotate-180")} />
+                                {isExpanded ? 'Ocultar itens' : 'Ver itens'}
+                            </Button>
 
-                        {/* Expanded Details */}
-                        {expandedOrder === order.id && (
-                            <div className="pt-2 text-xs space-y-3 animate-in slide-in-from-top-2 duration-200">
-                                {/* Items List */}
-                                <div className="space-y-1 bg-gray-50 p-2 rounded">
-                                    {order.items.map((item: CartItem, idx: number) => (
-                                        <div key={idx} className="flex justify-between">
-                                            <span className="text-gray-600">{item.quantity}x {item.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Full Address */}
-                                <div className="text-gray-500">
-                                    <p>{order.address.street}, {order.address.number}</p>
-                                    {order.address.complement && <p>{order.address.complement}</p>}
-                                </div>
-
-                                {/* Edit Button */}
+                            <div className="flex items-center gap-1 shrink-0">
                                 <Button
                                     variant="outline"
-                                    size="sm"
-                                    className="w-full h-8 gap-2 cursor-pointer border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                    size="icon"
+                                    className="h-7 w-7 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 border-border/80 cursor-pointer"
+                                    title="Editar pedido"
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onClick={() => onEdit(order)}
                                 >
                                     <Pencil className="h-3 w-3" />
-                                    Editar Pedido
                                 </Button>
 
-                                {/* Phone Button */}
+                                {order.user?.phone && (
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-7 w-7 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-border/80 cursor-pointer"
+                                        title="WhatsApp do cliente"
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onClick={() => window.open(`https://wa.me/55${order.user.phone.replace(/\D/g, '')}`, '_blank')}
+                                    >
+                                        <MessageCircle className="h-3 w-3" />
+                                    </Button>
+                                )}
+
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="w-full h-8 gap-2 cursor-pointer border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                                    className="h-7 px-2 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+                                    asChild
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    onClick={() => window.open(`https://wa.me/55${order.user.phone}`, '_blank')}
                                 >
-                                    <MessageCircle className="h-3 w-3" />
-                                    WhatsApp
+                                    <Link to={`/admin/orders/${order.id}`}>
+                                        Detalhes
+                                    </Link>
                                 </Button>
+                            </div>
+                        </div>
+
+                        {/* Collapsible Details Panel */}
+                        {isExpanded && (
+                            <div className="pt-2 text-[11px] space-y-2 animate-in fade-in-50 duration-150 border-t border-border/60">
+                                <div className="space-y-1 bg-muted/40 p-2.5 rounded-lg border border-border/40">
+                                    <span className="font-semibold text-foreground text-[10px] uppercase tracking-wider block mb-1">
+                                        Itens Selecionados ({order.items?.length || 0})
+                                    </span>
+                                    <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                                        {order.items?.map((item: CartItem, idx: number) => (
+                                            <div key={idx} className="flex justify-between items-center text-muted-foreground text-xs py-0.5 border-b border-border/20 last:border-0">
+                                                <span className="truncate pr-2 font-normal text-foreground">
+                                                    <span className="font-semibold text-primary">{item.quantity}x</span> {item.name}
+                                                </span>
+                                                <span className="tabular-nums shrink-0 font-medium text-foreground text-[11px]">
+                                                    R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {order.address && (
+                                    <div className="text-muted-foreground bg-muted/20 p-2 rounded-lg border border-border/30 text-[11px]">
+                                        <p className="font-medium text-foreground">
+                                            {order.address.street}, {order.address.number}
+                                        </p>
+                                        {order.address.complement && <p>{order.address.complement}</p>}
+                                        <p>{order.address.neighborhood} · {order.address.city}</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 };
 
 // --- Droppable Column Component ---
-const DroppableColumn = ({ id, status, orders, statsConfig, expandedOrder, setExpandedOrder, updateOrderStatus, onEdit }: any) => {
-    const { setNodeRef } = useDroppable({ id });
+const DroppableColumn = ({
+    id,
+    orders,
+    statsConfig,
+    expandedOrder,
+    setExpandedOrder,
+    updateOrderStatus,
+    onEdit
+}: {
+    id: string;
+    orders: OrderWithUser[];
+    statsConfig: typeof statusConfig[keyof typeof statusConfig];
+    expandedOrder: string | null;
+    setExpandedOrder: (id: string | null) => void;
+    updateOrderStatus: (orderId: string, newStatus: Order['status']) => void;
+    onEdit: (order: Order) => void;
+}) => {
+    const { setNodeRef, isOver } = useDroppable({ id });
     const StatusIcon = statsConfig.icon;
+    const totalColumnRevenue = orders.reduce((acc, curr) => acc + curr.total, 0);
 
     return (
-        <div ref={setNodeRef} className="flex flex-col w-80 flex-shrink-0 bg-gray-50/50 rounded-xl border p-4 h-full min-h-[500px]">
+        <div
+            ref={setNodeRef}
+            className={cn(
+                "flex flex-col w-80 shrink-0 rounded-2xl border transition-all duration-200 p-3 h-full min-h-[620px]",
+                isOver
+                    ? "bg-primary/5 border-primary shadow-md ring-2 ring-primary/20"
+                    : "bg-muted/20 dark:bg-muted/10 border-border/70"
+            )}
+        >
             {/* Column Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <div className={cn("p-2 rounded-lg bg-white shadow-sm", statsConfig.color.split(' ')[1])}>
+            <div className="flex items-center justify-between pb-3 mb-2 px-1 border-b border-border/60">
+                <div className="flex items-center gap-2 min-w-0">
+                    <div className={cn("p-1.5 rounded-lg border shadow-xs shrink-0", statsConfig.badgeBg)}>
                         <StatusIcon className="h-4 w-4" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">{statsConfig.label}</h3>
+                    <div className="min-w-0">
+                        <h3 className="font-bold text-xs text-foreground leading-tight truncate">
+                            {statsConfig.label}
+                        </h3>
+                        <span className="text-[11px] text-muted-foreground font-mono tabular-nums">
+                            R$ {totalColumnRevenue.toFixed(2).replace('.', ',')}
+                        </span>
+                    </div>
                 </div>
-                <Badge variant="secondary" className="bg-white">{orders.length}</Badge>
+
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-extrabold text-foreground bg-card dark:bg-muted/40 border border-border/80 px-2.5 py-0.5 rounded-full tabular-nums shadow-xs">
+                        {orders.length}
+                    </span>
+                </div>
             </div>
 
             {/* Cards Container */}
-            <ScrollArea className="flex-1 -mx-2 px-2">
+            <ScrollArea className="flex-1 -mx-1 px-1">
                 <div className="space-y-3 pb-4">
-                    {orders.map((order: any) => (
+                    {orders.map((order) => (
                         <DraggableOrderCard
                             key={order.id}
                             order={order}
-                            statusConfig={statusConfig}
                             updateOrderStatus={updateOrderStatus}
-                            updatedOrderStatus={updateOrderStatus}
                             expandedOrder={expandedOrder}
                             setExpandedOrder={setExpandedOrder}
                             onEdit={onEdit}
                         />
                     ))}
                     {orders.length === 0 && (
-                        <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed rounded-lg">
-                            Solte aqui
+                        <div className="text-center py-16 px-4 text-muted-foreground text-xs border border-dashed border-border/60 rounded-xl bg-card/30 flex flex-col items-center justify-center gap-2">
+                            <StatusIcon className="h-6 w-6 opacity-30" />
+                            <span>Arraste um pedido aqui</span>
                         </div>
                     )}
                 </div>
@@ -241,13 +408,15 @@ const DroppableColumn = ({ id, status, orders, statsConfig, expandedOrder, setEx
     );
 };
 
-
 export default function Orders() {
     const [orders, setOrders] = useState<OrderWithUser[]>([]);
     const [loading, setLoading] = useState(true);
+    const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('todos');
+    const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'today' | '7days' | '30days'>('all');
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
-    const [mobileStatusFilter, setMobileStatusFilter] = useState<Order['status'] | 'todos'>('todos');
     const [editingOrder, setEditingOrder] = useState<Order | null>(null);
     const { toast } = useToast();
 
@@ -259,134 +428,173 @@ export default function Orders() {
         })
     );
 
-    useEffect(() => {
-        loadOrders();
-
-        // Subscribe to realtime changes
-        const subscription = supabase
-            .channel('public:orders')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-                loadOrders();
-            })
-            .subscribe();
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, []);
-
     const loadOrders = async () => {
         try {
+            setLoading(true);
             const { data, error } = await supabase
                 .from('orders')
                 .select(`
-          *,
-          user:users!user_id (
-            phone,
-            name
-          )
-        `)
+                    *,
+                    user:users!user_id (
+                        phone,
+                        name
+                    )
+                `)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            const transformedOrders: OrderWithUser[] = data.map((row: any) => ({
-                id: row.order_number,
-                items: row.items as CartItem[],
-                budget: Number(row.budget),
-                total: Number(row.total),
-                savings: Number(row.savings),
-                status: row.status as Order['status'],
-                address: row.address as Address,
-                missingItemPreference: row.missing_item_preference as 'substituir' | 'credito',
-                createdAt: row.created_at,
-                estimatedDelivery: row.estimated_delivery,
+            const transformedOrders: OrderWithUser[] = (data || []).map((row: Record<string, unknown>) => ({
+                id: String(row.order_number || row.id),
+                rawId: row.id ? String(row.id) : undefined,
+                items: (row.items as CartItem[]) || [],
+                budget: Number(row.budget || 0),
+                total: Number(row.total || 0),
+                savings: Number(row.savings || 0),
+                status: (row.status as Order['status']) || 'processando',
+                address: (row.address as Address) || ({} as Address),
+                missingItemPreference: row.missing_item_preference as 'substituir' | 'remover',
+                createdAt: String(row.created_at || new Date().toISOString()),
+                estimatedDelivery: row.estimated_delivery ? String(row.estimated_delivery) : undefined,
+                deliveryDate: row.delivery_date ? String(row.delivery_date) : undefined,
+                paymentMethod: row.payment_method as Order['paymentMethod'],
+                installments: row.installments ? Number(row.installments) : undefined,
+                paymentDay: row.payment_day ? Number(row.payment_day) : undefined,
+                paymentDate: row.payment_date ? String(row.payment_date) : undefined,
                 user: {
-                    phone: row.user?.phone || 'N/A',
-                    name: row.user?.name,
+                    phone: (row.user as { phone?: string; name?: string })?.phone || 'N/A',
+                    name: (row.user as { phone?: string; name?: string })?.name || 'Cliente',
                 },
             }));
 
             setOrders(transformedOrders);
-            setLoading(false);
         } catch (error) {
             console.error('Error loading orders:', error);
+            toast({
+                title: "Erro ao carregar pedidos",
+                description: "Verifique a conexão com o Supabase.",
+                variant: "destructive"
+            });
+        } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => {
+        loadOrders();
+
+        // Realtime subscription
+        const subscription = supabase
+            .channel(`admin-orders-${Math.random().toString(36).slice(2)}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+                void loadOrders();
+            })
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(subscription);
+        };
+        // Mount-only subscription; realtime callbacks always use the latest loadOrders.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+        const order = orders.find(o => o.id === orderId);
+
+        // Optimistic update
+        setOrders((prev) =>
+            prev.map((o) =>
+                o.id === orderId ? { ...o, status: newStatus } : o
+            )
+        );
+
         try {
-            // Find the order *before* update for the message
-            const order = orders.find(o => o.id === orderId);
+            // Prefer the immutable UUID; order_number is a human readable key and
+            // older rows may not have one. Falling back covers both schemas.
+            let updatedRows: Array<{ id: string }> | null = null;
+            let updateError: { message: string } | null = null;
 
-            // Optimistic update
-            setOrders((prev) =>
-                prev.map((o) =>
-                    o.id === orderId ? { ...o, status: newStatus } : o
-                )
-            );
+            if (order?.rawId) {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .update({ status: newStatus })
+                    .eq('id', order.rawId)
+                    .select('id');
+                updatedRows = data;
+                updateError = error;
+            }
 
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: newStatus })
-                .eq('order_number', orderId);
+            if (!updatedRows || updatedRows.length === 0) {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .update({ status: newStatus })
+                    .eq('order_number', orderId)
+                    .select('id');
+                if (error) updateError = error;
+                updatedRows = data ?? updatedRows;
+            }
 
-            if (error) throw error;
+            if (updateError) throw updateError;
+            if (!updatedRows || updatedRows.length === 0) {
+                throw new Error('Pedido não encontrado no banco de dados.');
+            }
 
-            // Handle Notification
-            if (order) {
-                const message = await getWhatsAppMessage(newStatus, order);
-                const phoneNumber = `55${order.user.phone}`;
-                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-
-                // Attempt Bot Send First
-                toast({
-                    title: "Atualizando status...",
-                    description: "Tentando contato com o robô...",
-                    duration: 2000,
-                });
-
-                const sentByBot = await sendWhatsAppMessage(phoneNumber, message);
-
-                if (sentByBot) {
-                    toast({
-                        title: "✅ Sucesso Automático!",
-                        description: `Mensagem enviada pelo Droide para ${order.user.name}`,
-                        variant: "default",
-                        className: "bg-green-50 border-green-200 text-green-900"
-                    });
-                } else {
-                    // Fallback to Manual
-                    toast({
-                        title: "⚠️ Modo Manual",
-                        description: `Robô offline. Envie manualmente:`,
-                        action: (
-                            <ToastAction altText="Enviar WhatsApp" onClick={() => window.open(whatsappUrl, '_blank')}>
-                                <div className="flex items-center gap-2">
-                                    <MessageCircle className="h-4 w-4" />
-                                    Enviar Zap
-                                </div>
-                            </ToastAction>
-                        ),
-                    });
+            // If order was delivered, release referral cashback for cash/PIX payments
+            if (newStatus === 'entregue') {
+                await onOrderDelivered(orderId);
+                if (order?.rawId && order.rawId !== orderId) {
+                    await onOrderDelivered(order.rawId);
                 }
             }
 
+            // WhatsApp notification is best-effort and must not block the update.
+            if (order?.user.phone) {
+                try {
+                    const message = await getWhatsAppMessage(newStatus, order);
+                    const phoneNumber = `55${order.user.phone.replace(/\D/g, '')}`;
+                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+
+                    const sentByBot = await sendWhatsAppMessage(phoneNumber, message);
+
+                    if (sentByBot) {
+                        toast({
+                            title: "Status Atualizado ✅",
+                            description: `Mensagem enviada automaticamente para ${order.user.name}`,
+                            className: "bg-emerald-50 border-emerald-200 text-emerald-900"
+                        });
+                    } else {
+                        toast({
+                            title: `Status: ${statusConfig[newStatus]?.label || newStatus}`,
+                            description: `Atualizado no Supabase. Notifique o cliente:`,
+                            action: (
+                                <ToastAction altText="Enviar WhatsApp" onClick={() => window.open(whatsappUrl, '_blank')}>
+                                    <div className="flex items-center gap-1.5 font-medium">
+                                        <MessageCircle className="h-4 w-4 text-emerald-600" />
+                                        Enviar WhatsApp
+                                    </div>
+                                </ToastAction>
+                            ),
+                        });
+                    }
+                } catch (whatsappError) {
+                    console.error('Error sending status notification:', whatsappError);
+                }
+            }
         } catch (error) {
             console.error('Error updating status:', error);
             toast({
-                title: "Erro ao atualizar",
+                title: "Erro ao atualizar status",
+                description: error instanceof Error ? error.message : undefined,
                 variant: "destructive"
             });
-            loadOrders(); // Revert on error
+            await loadOrders(); // Revert on error
         }
     };
 
     const handleSaveOrder = async (updatedOrder: Order) => {
         try {
-            const { error } = await supabase
+            const existing = orders.find(o => o.id === updatedOrder.id);
+            const query = supabase
                 .from('orders')
                 .update({
                     items: updatedOrder.items,
@@ -395,24 +603,31 @@ export default function Orders() {
                     payment_method: updatedOrder.paymentMethod,
                     installments: updatedOrder.installments,
                     address: updatedOrder.address,
-                    // Map other fields if necessary
-                })
-                .eq('order_number', updatedOrder.id);
+                });
+
+            const { data, error } = existing?.rawId
+                ? await query.eq('id', existing.rawId).select('id')
+                : await query.eq('order_number', updatedOrder.id).select('id');
 
             if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error('Pedido não encontrado no banco de dados.');
+            }
 
-            setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...updatedOrder, user: (o as OrderWithUser).user } : o));
+            setOrders(prev =>
+                prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o)
+            );
 
             toast({
-                title: "Pedido atualizado",
-                description: "As alterações foram salvas com sucesso.",
-                className: "bg-green-50 border-green-200 text-green-900"
+                title: "Pedido salvo!",
+                description: "Alterações gravadas no Supabase com sucesso.",
+                className: "bg-emerald-50 border-emerald-200 text-emerald-900"
             });
         } catch (error) {
             console.error('Error updating order:', error);
             toast({
                 title: "Erro ao salvar",
-                description: "Não foi possível salvar as alterações.",
+                description: error instanceof Error ? error.message : "Não foi possível salvar as alterações.",
                 variant: "destructive"
             });
         }
@@ -437,347 +652,602 @@ export default function Orders() {
         }
     };
 
-    const stats = {
-        total: orders.length,
-        pending: orders.filter(o => ['processando', 'separando'].includes(o.status)).length,
-        revenue: orders.reduce((acc, curr) => acc + curr.total, 0),
-    };
+    // Filtered orders based on search, status and date
+    const filteredOrders = useMemo(() => {
+        const now = new Date();
 
-    const ordersByStatus = {
-        processando: orders.filter((o) => o.status === 'processando'),
-        separando: orders.filter((o) => o.status === 'separando'),
-        em_rota: orders.filter((o) => o.status === 'em_rota' || o.status === 'saiu_para_entrega'),
-        entregue: orders.filter((o) => o.status === 'entregue'),
-        cancelado: orders.filter((o) => o.status === 'cancelado'),
-    };
+        return orders.filter(order => {
+            // Text search
+            const matchSearch =
+                order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                order.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                order.user.phone.includes(searchTerm) ||
+                order.address?.street?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                order.address?.neighborhood?.toLowerCase().includes(searchTerm.toLowerCase());
+
+            // Status filter
+            const matchStatus =
+                selectedStatusFilter === 'todos' ||
+                (selectedStatusFilter === 'em_rota' ? (order.status === 'em_rota' || order.status === 'saiu_para_entrega') : order.status === selectedStatusFilter);
+
+            // Date filter
+            let matchDate = true;
+            if (dateRangeFilter !== 'all') {
+                const orderDate = new Date(order.createdAt);
+                const diffHours = (now.getTime() - orderDate.getTime()) / (1000 * 3600);
+
+                if (dateRangeFilter === 'today') {
+                    matchDate = orderDate.toDateString() === now.toDateString();
+                } else if (dateRangeFilter === '7days') {
+                    matchDate = diffHours <= 24 * 7;
+                } else if (dateRangeFilter === '30days') {
+                    matchDate = diffHours <= 24 * 30;
+                }
+            }
+
+            return matchSearch && matchStatus && matchDate;
+        });
+    }, [orders, searchTerm, selectedStatusFilter, dateRangeFilter]);
+
+    // Grouping for Kanban columns
+    const kanbanColumns = useMemo(() => ({
+        processando: filteredOrders.filter((o) => o.status === 'processando'),
+        separando: filteredOrders.filter((o) => o.status === 'separando'),
+        em_rota: filteredOrders.filter((o) => o.status === 'em_rota' || o.status === 'saiu_para_entrega'),
+        entregue: filteredOrders.filter((o) => o.status === 'entregue'),
+        cancelado: filteredOrders.filter((o) => o.status === 'cancelado'),
+    }), [filteredOrders]);
+
+    // Overall aggregate stats
+    const stats = useMemo(() => {
+        const totalCount = orders.length;
+        const totalRevenue = orders
+            .filter((order) => order.status !== 'cancelado')
+            .reduce((acc, curr) => acc + curr.total, 0);
+        const inProgress = orders.filter(o => ['processando', 'separando', 'em_rota', 'saiu_para_entrega'].includes(o.status)).length;
+        const delivered = orders.filter(o => o.status === 'entregue').length;
+
+        return {
+            totalCount,
+            totalRevenue,
+            inProgress,
+            delivered,
+        };
+    }, [orders]);
 
     const activeOrder = activeDragId ? orders.find(o => o.id === activeDragId) : null;
 
-    // Mobile filtered orders
-    const mobileFilteredOrders = mobileStatusFilter === 'todos'
-        ? orders
-        : orders.filter(o => o.status === mobileStatusFilter);
+    // Export orders to CSV
+    const exportToCSV = () => {
+        if (orders.length === 0) {
+            toast({ title: "Nenhum pedido para exportar", variant: "destructive" });
+            return;
+        }
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
-    }
+        const headers = ["ID", "Cliente", "Telefone", "Data", "Status", "Forma_Pagamento", "Total_R$", "Itens_Qtd"];
+        const rows = orders.map(o => [
+            o.id,
+            `"${o.user.name || 'Cliente'}"`,
+            o.user.phone,
+            new Date(o.createdAt).toLocaleDateString('pt-BR'),
+            o.status,
+            o.paymentMethod || 'Não informado',
+            o.total.toFixed(2),
+            o.items.length
+        ]);
+
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `pedidos_cesta_facil_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+            title: "Exportação Concluída 📄",
+            description: `${orders.length} pedidos exportados para CSV com sucesso.`
+        });
+    };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] space-y-4 sm:space-y-6">
-            {/* Header & Stats */}
-            <div className="flex-none space-y-3 sm:space-y-4">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Painel de Pedidos</h1>
-                    <p className="text-sm sm:text-base text-muted-foreground">Gerencie o fluxo de pedidos da loja em tempo real</p>
+        <div className="flex flex-col h-[calc(100vh-4.5rem)] space-y-4">
+            {/* Top Bar / Header */}
+            <div className="flex-none space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                                Gestão & Esteira de Pedidos
+                            </h1>
+                            <Badge variant="outline" className="font-mono text-xs">
+                                {orders.length} pedidos
+                            </Badge>
+                        </div>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                            Visualize, despache e acompanhe todos os pedidos da loja em tempo real
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        {/* View Switcher Tabs */}
+                        <div className="flex items-center p-0.5 bg-muted rounded-lg border border-border shrink-0">
+                            <button
+                                onClick={() => setViewMode('kanban')}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer",
+                                    viewMode === 'kanban'
+                                        ? "bg-card text-foreground shadow-xs font-semibold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <Kanban className="h-3.5 w-3.5" />
+                                <span>Esteira</span>
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer",
+                                    viewMode === 'table'
+                                        ? "bg-card text-foreground shadow-xs font-semibold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <LayoutList className="h-3.5 w-3.5" />
+                                <span>Tabela Geral</span>
+                            </button>
+                        </div>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={exportToCSV}
+                            className="h-9 gap-1.5 text-xs"
+                            title="Exportar dados para Excel/CSV"
+                        >
+                            <Download className="h-3.5 w-3.5" />
+                            <span className="hidden md:inline">Exportar</span>
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={loadOrders}
+                            disabled={loading}
+                            className="h-9 gap-1.5 text-xs"
+                        >
+                            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                            <span className="hidden md:inline">Atualizar</span>
+                        </Button>
+                    </div>
                 </div>
 
-                {/* Stats Cards - 2 columns on mobile, 4 on desktop */}
-                <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-                    <Card className="bg-yellow-50/50 border-yellow-100">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-xs sm:text-sm font-medium text-yellow-800">Processando</CardTitle>
-                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600" />
+                {/* KPI Metrics Strip */}
+                <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                    <Card className="border border-border/80 shadow-xs">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Total Pedidos
+                            </CardTitle>
+                            <ShoppingBag className="h-4 w-4 text-primary" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-xl sm:text-2xl font-bold text-yellow-900">{ordersByStatus.processando.length}</div>
-                            <p className="text-[10px] sm:text-xs text-yellow-700">Aguardando separação</p>
+                        <CardContent className="p-3 pt-0">
+                            <div className="text-2xl font-bold tracking-tight tabular-nums">
+                                {loading ? '...' : stats.totalCount}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Cadastrados no sistema
+                            </p>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-blue-50/50 border-blue-100">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-xs sm:text-sm font-medium text-blue-800">Separando</CardTitle>
-                            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                    <Card className="border border-border/80 shadow-xs">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Em Andamento
+                            </CardTitle>
+                            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-xl sm:text-2xl font-bold text-blue-900">{ordersByStatus.separando.length}</div>
-                            <p className="text-[10px] sm:text-xs text-blue-700">Em preparação</p>
+                        <CardContent className="p-3 pt-0">
+                            <div className="text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400 tabular-nums">
+                                {loading ? '...' : stats.inProgress}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Processando / Separação / Rota
+                            </p>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-purple-50/50 border-purple-100">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-xs sm:text-sm font-medium text-purple-800">Em Rota</CardTitle>
-                            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
+                    <Card className="border border-border/80 shadow-xs">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Entregues
+                            </CardTitle>
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-xl sm:text-2xl font-bold text-purple-900">{ordersByStatus.em_rota.length}</div>
-                            <p className="text-[10px] sm:text-xs text-purple-700">Saiu para entrega</p>
+                        <CardContent className="p-3 pt-0">
+                            <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                {loading ? '...' : stats.delivered}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Pedidos finalizados
+                            </p>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-green-50/50 border-green-100">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-xs sm:text-sm font-medium text-green-800">Entregues</CardTitle>
-                            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                    <Card className="border border-border/80 shadow-xs">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Receita Total
+                            </CardTitle>
+                            <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-xl sm:text-2xl font-bold text-green-900">{ordersByStatus.entregue.length}</div>
-                            <p className="text-[10px] sm:text-xs text-green-700">Finalizados hoje</p>
+                        <CardContent className="p-3 pt-0">
+                            <div className="text-2xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">
+                                {loading ? '...' : `R$ ${stats.totalRevenue.toFixed(2).replace('.', ',')}`}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Volume movimentado
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Mobile Status Filter Tabs */}
-                <div className="md:hidden flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                    <Button
-                        variant={mobileStatusFilter === 'todos' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setMobileStatusFilter('todos')}
-                        className="flex-shrink-0 h-9"
-                    >
-                        Todos ({orders.length})
-                    </Button>
-                    <Button
-                        variant={mobileStatusFilter === 'processando' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setMobileStatusFilter('processando')}
-                        className="flex-shrink-0 h-9"
-                    >
-                        <Clock className="h-3 w-3 mr-1" />
-                        Processando
-                    </Button>
-                    <Button
-                        variant={mobileStatusFilter === 'separando' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setMobileStatusFilter('separando')}
-                        className="flex-shrink-0 h-9"
-                    >
-                        <Package className="h-3 w-3 mr-1" />
-                        Separando
-                    </Button>
-                    <Button
-                        variant={mobileStatusFilter === 'em_rota' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setMobileStatusFilter('em_rota')}
-                        className="flex-shrink-0 h-9"
-                    >
-                        <MapPin className="h-3 w-3 mr-1" />
-                        Em Rota
-                    </Button>
-                    <Button
-                        variant={mobileStatusFilter === 'entregue' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setMobileStatusFilter('entregue')}
-                        className="flex-shrink-0 h-9"
-                    >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Entregues
-                    </Button>
-                    <Button
-                        variant={mobileStatusFilter === 'cancelado' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setMobileStatusFilter('cancelado')}
-                        className="flex-shrink-0 h-9"
-                    >
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Cancelados
-                    </Button>
+                {/* Filter and Search Bar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar por ID, cliente, telefone ou bairro..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 h-9 text-xs"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                        {/* Status filter dropdown */}
+                        <Select
+                            value={selectedStatusFilter}
+                            onValueChange={setSelectedStatusFilter}
+                        >
+                            <SelectTrigger className="h-9 w-[150px] text-xs">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="todos">Todos os Status</SelectItem>
+                                <SelectItem value="processando">Processando</SelectItem>
+                                <SelectItem value="separando">Separando</SelectItem>
+                                <SelectItem value="em_rota">Em Rota</SelectItem>
+                                <SelectItem value="entregue">Entregue</SelectItem>
+                                <SelectItem value="cancelado">Cancelado</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {/* Date filter dropdown */}
+                        <Select
+                            value={dateRangeFilter}
+                            onValueChange={(val: 'all' | 'today' | '7days' | '30days') => setDateRangeFilter(val)}
+                        >
+                            <SelectTrigger className="h-9 w-[130px] text-xs">
+                                <SelectValue placeholder="Período" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todo período</SelectItem>
+                                <SelectItem value="today">Hoje</SelectItem>
+                                <SelectItem value="7days">Últimos 7 dias</SelectItem>
+                                <SelectItem value="30days">Últimos 30 dias</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </div>
 
-            {/* Mobile List View */}
-            <div className="md:hidden flex-1 overflow-y-auto space-y-3">
-                {mobileFilteredOrders.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                        <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>Nenhum pedido encontrado</p>
-                    </div>
-                ) : (
-                    mobileFilteredOrders.map((order) => {
-                        const config = statusConfig[order.status as keyof typeof statusConfig];
-                        const StatusIcon = config.icon;
+            {/* Main Area: Kanban Mode vs Table Mode */}
+            {viewMode === 'kanban' ? (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                    {/* Desktop Kanban Drag & Drop Board */}
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCorners}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <div className="hidden md:block h-full overflow-x-auto overflow-y-hidden pb-2">
+                            <div className="flex h-full gap-4 min-w-[1300px]">
+                                {Object.entries(kanbanColumns).map(([status, columnOrders]) => {
+                                    const config = statusConfig[status as keyof typeof statusConfig];
+                                    return (
+                                        <DroppableColumn
+                                            key={status}
+                                            id={status}
+                                            orders={columnOrders}
+                                            statsConfig={config}
+                                            expandedOrder={expandedOrder}
+                                            setExpandedOrder={setExpandedOrder}
+                                            updateOrderStatus={updateOrderStatus}
+                                            onEdit={setEditingOrder}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
 
-                        return (
-                            <Card key={order.id} className="bg-white shadow-sm border-gray-100">
-                                <CardHeader className="p-4 pb-2 space-y-2">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={cn("font-mono text-xs", config.color)}>
-                                                <StatusIcon className="h-3 w-3 mr-1" />
-                                                {config.label}
+                        <DragOverlay>
+                            {activeOrder ? (
+                                <Card className="bg-card shadow-2xl rotate-2 w-80 opacity-95 cursor-grabbing border-primary/50">
+                                    <CardHeader className="p-3.5 pb-2 space-y-1">
+                                        <div className="flex justify-between items-start">
+                                            <Badge variant="outline" className="font-mono text-xs">
+                                                #{activeOrder.id.slice(-6)}
                                             </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-base font-bold text-green-600">
-                                                R$ {order.total.toFixed(2).replace('.', ',')}
-                                            </span>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 -mr-2"
-                                                onClick={() => setEditingOrder(order)}
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2 text-sm font-medium">
-                                            <User className="h-3 w-3 text-muted-foreground" />
-                                            <span>{order.user.name || 'Cliente sem nome'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <MapPin className="h-3 w-3" />
-                                            <span className="truncate">
-                                                {order.address.neighborhood}, {order.address.city}
+                                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                                                R$ {activeOrder.total.toFixed(2).replace('.', ',')}
                                             </span>
                                         </div>
-                                    </div>
-                                </CardHeader>
+                                        <div className="text-xs font-semibold text-foreground truncate">
+                                            {activeOrder.user.name || 'Cliente'}
+                                        </div>
+                                    </CardHeader>
+                                </Card>
+                            ) : null}
+                        </DragOverlay>
+                    </DndContext>
 
-                                <CardContent className="p-4 pt-2">
-                                    <div className="space-y-2">
-                                        {/* Status Change Select */}
-                                        <Select
-                                            value={order.status}
-                                            onValueChange={(value) => updateOrderStatus(order.id, value as Order['status'])}
-                                        >
-                                            <SelectTrigger className="w-full h-10">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="processando">
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock className="h-4 w-4" />
-                                                        Processando
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="separando">
-                                                    <div className="flex items-center gap-2">
-                                                        <Package className="h-4 w-4" />
-                                                        Separando
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="em_rota">
-                                                    <div className="flex items-center gap-2">
-                                                        <MapPin className="h-4 w-4" />
-                                                        Em Rota
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="entregue">
-                                                    <div className="flex items-center gap-2">
-                                                        <CheckCircle2 className="h-4 w-4" />
-                                                        Entregue
-                                                    </div>
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                    {/* Mobile List View for Kanban */}
+                    <div className="md:hidden flex-1 overflow-y-auto space-y-3 pb-6">
+                        {filteredOrders.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground text-xs">
+                                Nenhum pedido encontrado com os filtros atuais.
+                            </div>
+                        ) : (
+                            filteredOrders.map((order) => {
+                                const config = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.processando;
+                                const StatusIcon = config.icon;
 
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="w-full h-9 text-xs"
-                                            onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                                        >
-                                            {expandedOrder === order.id ? 'Ocultar detalhes' : 'Ver detalhes'}
-                                        </Button>
-
-                                        {/* Expanded Details */}
-                                        {expandedOrder === order.id && (
-                                            <div className="pt-2 text-xs space-y-3 border-t">
-                                                {/* Items List */}
-                                                <div className="space-y-1 bg-gray-50 p-3 rounded">
-                                                    <p className="font-semibold text-gray-700 mb-2">Itens do Pedido:</p>
-                                                    {order.items.map((item: CartItem, idx: number) => (
-                                                        <div key={idx} className="flex justify-between text-gray-600">
-                                                            <span>{item.quantity}x {item.name}</span>
-                                                            <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                {/* Full Address */}
-                                                <div className="text-gray-600 bg-gray-50 p-3 rounded">
-                                                    <p className="font-semibold text-gray-700 mb-1">Endereço:</p>
-                                                    <p>{order.address.street}, {order.address.number}</p>
-                                                    {order.address.complement && <p>{order.address.complement}</p>}
-                                                    <p>{order.address.neighborhood}, {order.address.city}</p>
-                                                </div>
-
-                                                {/* Whatsapp Button */}
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="w-full h-10 gap-2 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
-                                                        onClick={() => window.open(`https://wa.me/55${order.user.phone}`, '_blank')}
-                                                    >
-                                                        <MessageCircle className="h-4 w-4" />
-                                                        WhatsApp
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="w-full h-10 gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                                                        onClick={() => setEditingOrder(order)}
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                        Editar
-                                                    </Button>
-                                                </div>
+                                return (
+                                    <Card key={order.id} className="bg-card border-border/80 shadow-xs">
+                                        <CardHeader className="p-4 pb-2 space-y-2">
+                                            <div className="flex justify-between items-start">
+                                                <Badge variant="outline" className={cn("font-mono text-xs", config.color)}>
+                                                    <StatusIcon className="h-3 w-3 mr-1" />
+                                                    {config.label}
+                                                </Badge>
+                                                <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                                    R$ {order.total.toFixed(2).replace('.', ',')}
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })
-                )}
-            </div>
 
-            {/* Desktop Kanban Board */}
-            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <div className="hidden md:block flex-1 overflow-x-auto overflow-y-hidden pb-4">
-                    <div className="flex h-full gap-6 min-w-[1000px]">
-                        {Object.entries(ordersByStatus).map(([status, statusOrders]) => {
-                            const config = statusConfig[status as keyof typeof statusConfig];
-                            return (
-                                <DroppableColumn
-                                    key={status}
-                                    id={status}
-                                    status={status}
-                                    orders={statusOrders}
-                                    statsConfig={config}
-                                    expandedOrder={expandedOrder}
-                                    setExpandedOrder={setExpandedOrder}
-                                    updateOrderStatus={updateOrderStatus}
-                                    onEdit={setEditingOrder}
-                                />
-                            );
-                        })}
+                                            <div className="space-y-0.5">
+                                                <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                                                    <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                                    <span>{order.user.name || 'Cliente sem nome'}</span>
+                                                </div>
+                                                {order.address && (
+                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                        <MapPin className="h-3 w-3" />
+                                                        <span className="truncate">
+                                                            {order.address.neighborhood}, {order.address.city}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </CardHeader>
+
+                                        <CardContent className="p-4 pt-1 space-y-2.5">
+                                            <Select
+                                                value={order.status}
+                                                onValueChange={(val) => updateOrderStatus(order.id, val as Order['status'])}
+                                            >
+                                                <SelectTrigger className="w-full h-9 text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="processando">Processando</SelectItem>
+                                                    <SelectItem value="separando">Separando</SelectItem>
+                                                    <SelectItem value="em_rota">Em Rota</SelectItem>
+                                                    <SelectItem value="entregue">Entregue</SelectItem>
+                                                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+
+                                            <div className="grid grid-cols-2 gap-2 pt-1">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-xs"
+                                                    onClick={() => setEditingOrder(order)}
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                                                </Button>
+                                                {order.user?.phone && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                                                        onClick={() => window.open(`https://wa.me/55${order.user.phone.replace(/\D/g, '')}`, '_blank')}
+                                                    >
+                                                        <MessageCircle className="h-3.5 w-3.5 mr-1" /> WhatsApp
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
+            ) : (
+                /* Table View Mode (Complete Management Table) */
+                <Card className="flex-1 min-h-0 border-border/80 shadow-xs flex flex-col overflow-hidden">
+                    <ScrollArea className="flex-1">
+                        <Table>
+                            <TableHeader className="bg-muted/40 sticky top-0 z-10">
+                                <TableRow className="hover:bg-transparent border-border/70">
+                                    <TableHead className="text-xs font-semibold w-24">Pedido</TableHead>
+                                    <TableHead className="text-xs font-semibold">Cliente</TableHead>
+                                    <TableHead className="text-xs font-semibold">Endereço</TableHead>
+                                    <TableHead className="text-xs font-semibold text-center">Itens</TableHead>
+                                    <TableHead className="text-xs font-semibold text-right">Total</TableHead>
+                                    <TableHead className="text-xs font-semibold">Pagamento</TableHead>
+                                    <TableHead className="text-xs font-semibold">Data</TableHead>
+                                    <TableHead className="text-xs font-semibold">Status</TableHead>
+                                    <TableHead className="text-xs font-semibold text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={9} className="h-32 text-center text-xs text-muted-foreground">
+                                            <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-primary" />
+                                            Carregando pedidos do Supabase...
+                                        </TableCell>
+                                    </TableRow>
+                                ) : filteredOrders.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={9} className="h-32 text-center text-xs text-muted-foreground">
+                                            <ShoppingBag className="h-6 w-6 mx-auto mb-2 opacity-40" />
+                                            Nenhum pedido encontrado com os filtros aplicados.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    filteredOrders.map((order) => {
+                                        const config = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.processando;
+                                        const dateStr = new Date(order.createdAt).toLocaleDateString('pt-BR');
 
-                <DragOverlay>
-                    {activeOrder ? (
-                        <Card className="bg-white shadow-xl rotate-2 w-80 opacity-90 cursor-grabbing">
-                            <CardHeader className="p-4 pb-2 space-y-2">
-                                <div className="flex justify-between items-start">
-                                    <Badge variant="outline" className="font-mono text-xs">
-                                        {activeOrder.id.slice(-6)}
-                                    </Badge>
-                                    <span className="text-sm font-bold text-green-600">
-                                        R$ {activeOrder.total.toFixed(2).replace('.', ',')}
-                                    </span>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-2 text-sm font-medium">
-                                        <User className="h-3 w-3 text-muted-foreground" />
-                                        <span className="truncate">{activeOrder.user.name || 'Cliente sem nome'}</span>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                        </Card>
-                    ) : null}
-                </DragOverlay>
-            </DndContext>
+                                        return (
+                                            <TableRow key={order.id} className="border-border/60 hover:bg-muted/30 transition-colors">
+                                                {/* ID */}
+                                                <TableCell className="py-3 font-mono text-xs font-semibold">
+                                                    <Link
+                                                        to={`/admin/orders/${order.id}`}
+                                                        className="text-primary hover:underline"
+                                                    >
+                                                        #{order.id.slice(-6)}
+                                                    </Link>
+                                                </TableCell>
 
+                                                {/* Customer */}
+                                                <TableCell className="py-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-medium text-foreground truncate max-w-[150px]">
+                                                            {order.user.name || 'Cliente'}
+                                                        </span>
+                                                        <span className="text-[11px] text-muted-foreground font-mono">
+                                                            {order.user.phone || 'Sem telefone'}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+
+                                                {/* Address */}
+                                                <TableCell className="py-3">
+                                                    <div className="flex flex-col text-xs text-muted-foreground truncate max-w-[200px]">
+                                                        <span className="truncate text-foreground">
+                                                            {order.address?.street ? `${order.address.street}, ${order.address.number}` : '-'}
+                                                        </span>
+                                                        <span className="text-[11px] truncate">
+                                                            {order.address?.neighborhood || ''} {order.address?.city ? `· ${order.address.city}` : ''}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+
+                                                {/* Items Count */}
+                                                <TableCell className="py-3 text-center tabular-nums text-xs font-medium">
+                                                    <Badge variant="outline" className="text-[11px] bg-muted/40">
+                                                        {order.items?.length || 0}
+                                                    </Badge>
+                                                </TableCell>
+
+                                                {/* Total */}
+                                                <TableCell className="py-3 text-right tabular-nums text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                                    R$ {order.total.toFixed(2).replace('.', ',')}
+                                                </TableCell>
+
+                                                {/* Payment */}
+                                                <TableCell className="py-3">
+                                                    <span className="text-xs font-medium capitalize text-muted-foreground">
+                                                        {order.paymentMethod === 'carne' ? 'Carnê Digital' :
+                                                            order.paymentMethod === 'cartao' ? 'Cartão' :
+                                                            order.paymentMethod === 'pix' ? 'PIX' :
+                                                            order.paymentMethod === 'dinheiro' ? 'Dinheiro' : (order.paymentMethod || '-')}
+                                                        {order.installments && order.installments > 1 ? ` (${order.installments}x)` : ''}
+                                                    </span>
+                                                </TableCell>
+
+                                                {/* Date */}
+                                                <TableCell className="py-3 text-xs text-muted-foreground tabular-nums">
+                                                    {dateStr}
+                                                </TableCell>
+
+                                                {/* Status Selector */}
+                                                <TableCell className="py-3">
+                                                    <Select
+                                                        value={order.status}
+                                                        onValueChange={(val) => updateOrderStatus(order.id, val as Order['status'])}
+                                                    >
+                                                        <SelectTrigger className={cn("h-7 w-[125px] text-[11px] font-medium border", config.color)}>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="processando">Processando</SelectItem>
+                                                            <SelectItem value="separando">Separando</SelectItem>
+                                                            <SelectItem value="em_rota">Em Rota</SelectItem>
+                                                            <SelectItem value="entregue">Entregue</SelectItem>
+                                                            <SelectItem value="cancelado">Cancelado</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+
+                                                {/* Actions */}
+                                                <TableCell className="py-3 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                                                            title="Editar pedido"
+                                                            onClick={() => setEditingOrder(order)}
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </Button>
+
+                                                        {order.user?.phone && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                                                title="Abrir WhatsApp"
+                                                                onClick={() => window.open(`https://wa.me/55${order.user.phone.replace(/\D/g, '')}`, '_blank')}
+                                                            >
+                                                                <MessageCircle className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        )}
+
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 px-2 text-[11px]"
+                                                            asChild
+                                                        >
+                                                            <Link to={`/admin/orders/${order.id}`}>
+                                                                Detalhes
+                                                            </Link>
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </Card>
+            )}
+
+            {/* Edit Order Modal */}
             <OrderEditDialog
                 open={!!editingOrder}
                 onOpenChange={(open) => !open && setEditingOrder(null)}

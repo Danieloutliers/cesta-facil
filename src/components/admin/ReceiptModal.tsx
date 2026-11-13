@@ -9,16 +9,38 @@ import { useToast } from '@/hooks/use-toast';
 import { BOT_API_URL } from '@/config/bot';
 import { calculatePaymentSchedule } from '@/lib/financial';
 
+interface ReceiptOrder {
+    id?: string;
+    order_number?: string;
+    total: number;
+    installments?: number;
+    delivery_date?: string;
+    payment_method?: string;
+    payment_day?: number;
+    payment_date?: string;
+    created_at?: string;
+}
+
+interface ReceiptCustomer {
+    full_name?: string;
+    name?: string;
+    cpf?: string;
+    phone?: string;
+    last_order_number?: string;
+    last_delivery_date?: string;
+    payment_day?: number;
+}
+
 interface ReceiptModalProps {
-    order: any;
-    customer: any;
+    order: ReceiptOrder;
+    customer: ReceiptCustomer;
 }
 
 export function ReceiptModal({ order, customer }: ReceiptModalProps) {
-    const componentRef = useRef(null);
+    const componentRef = useRef<HTMLDivElement>(null);
 
     const handlePrint = useReactToPrint({
-        content: () => componentRef.current,
+        contentRef: componentRef,
         documentTitle: `Comprovante_Pedido_${order.order_number}`,
     });
 
@@ -28,7 +50,7 @@ export function ReceiptModal({ order, customer }: ReceiptModalProps) {
     // Debug logging
 
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString?: string) => {
         // STRICT: Only use provided date or delivery_date. NO fallback to created_at/updated_at for delivery fields.
         // Smart Fallback: Check if this order matches the customer's last recorded order
         const isLastOrder = customer?.last_order_number === order.id || customer?.last_order_number === order.order_number;
@@ -53,7 +75,8 @@ export function ReceiptModal({ order, customer }: ReceiptModalProps) {
     };
 
     const handleSendWhatsapp = async () => {
-        if (!customer.phone) {
+        const phoneDigits = customer.phone?.replace(/\D/g, '') ?? '';
+        if (!phoneDigits) {
             toast({ title: "Erro", description: "Cliente sem telefone cadastrado.", variant: "destructive" });
             return;
         }
@@ -84,7 +107,7 @@ export function ReceiptModal({ order, customer }: ReceiptModalProps) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    phone: customer.phone,
+                    phone: phoneDigits.startsWith('55') ? phoneDigits : `55${phoneDigits}`,
                     message
                 })
             });

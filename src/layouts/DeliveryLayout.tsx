@@ -1,19 +1,25 @@
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Truck, MapPin, List, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
 import { toast } from "sonner";
 
 const DeliveryLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    useEffect(() => {
-        const isLoggedIn = localStorage.getItem('delivery_driver_logged_in');
-        if (!isLoggedIn) {
-            navigate('/delivery/login');
+    // Read the session synchronously: redirecting inside an effect rendered the
+    // (empty) delivery pages first and could leak a flash of protected content.
+    const isLoggedIn = (() => {
+        try {
+            return localStorage.getItem('delivery_driver_logged_in') === 'true';
+        } catch {
+            return false;
         }
-    }, [navigate]);
+    })();
+
+    if (!isLoggedIn) {
+        return <Navigate to="/delivery/login" replace state={{ from: location.pathname }} />;
+    }
 
     const handleLogout = () => {
         localStorage.removeItem('delivery_driver_logged_in');
@@ -34,6 +40,15 @@ const DeliveryLayout = () => {
                     </div>
                     <h1 className="text-lg font-bold text-gray-800">Rota de Entrega</h1>
                 </div>
+                <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    aria-label="Sair da conta do entregador"
+                >
+                    <LogOut className="h-4 w-4" />
+                    Sair
+                </button>
             </header>
 
             {/* Main Content Area */}

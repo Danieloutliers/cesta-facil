@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Gift, Share2, Copy, Check, DollarSign, Users, Sparkles, Send, Wallet,
-    Clock, CheckCircle2, ArrowLeft, ArrowUpRight, ShoppingBag, Calculator, Info
+    Clock, CheckCircle2, ArrowLeft, ArrowUpRight, ShoppingBag, Calculator, Info, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { fetchReferralsFromSupabase, ReferralRecord } from '@/services/referralService';
+import { supabase } from '@/lib/supabase';
 
 interface Referral {
     id: string;
@@ -21,6 +23,11 @@ interface Referral {
     status: 'completed' | 'pending';
     purchaseValue?: number;
     reward: number;
+    paymentMethod?: string;
+    installmentsTotal?: number;
+    installmentsPaid?: number;
+    rewardReleased: number;
+    notes?: string;
 }
 
 const Indicacao = () => {
@@ -28,51 +35,83 @@ const Indicacao = () => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [copied, setCopied] = useState(false);
+    const [loadingReferrals, setLoadingReferrals] = useState(false);
 
     // Referral Code
     const referralCode = user ? `CESTA-${user.phone.replace(/\D/g, '').slice(-4) || '2026'}` : 'CESTA-2026';
     const [referrals, setReferrals] = useState<Referral[]>([]);
-    const [totalEarned, setTotalEarned] = useState(95.00);
-    const [balance, setBalance] = useState(65.00);
+    const [totalEarned, setTotalEarned] = useState(0);
+    const [balance, setBalance] = useState(0);
 
     // Calculator State
     const [simulatedPurchase, setSimulatedPurchase] = useState<number>(350);
 
-    useEffect(() => {
-        if (user) {
-            const storageKey = `mercadofacil_referrals_${user.id}_v2`;
-            const savedReferralData = localStorage.getItem(storageKey);
+    const loadUserReferrals = async () => {
+        if (!user) return;
+        setLoadingReferrals(true);
+        try {
+            const records: ReferralRecord[] = await fetchReferralsFromSupabase(user.id, user.phone, referralCode);
+            if (records && records.length > 0) {
+                const mapped: Referral[] = records.map(r => {
+                    const instTotal = r.installments_total || 1;
+                    const instPaid = r.installments_paid || 0;
+                    const released = r.reward_released !== undefined && r.reward_released !== null
+                        ? Number(r.reward_released)
+                        : (r.status === 'completed' || r.status === 'paid' ? Number(r.reward_amount) : 0);
 
-            if (savedReferralData) {
-                try {
-                    const parsed = JSON.parse(savedReferralData);
-                    setReferrals(parsed.referrals || []);
-                    setTotalEarned(parsed.totalEarned ?? 95.00);
-                    setBalance(parsed.balance ?? 65.00);
-                } catch (e) {
-                    console.error('Error reading referrals from storage', e);
-                }
+                    return {
+                        id: r.id,
+                        friendName: r.friend_name,
+                        date: new Date(r.created_at).toLocaleDateString('pt-BR'),
+                        status: (r.status === 'completed' || r.status === 'paid' || (instTotal > 1 && instPaid >= instTotal)) ? 'completed' : 'pending',
+                        purchaseValue: r.order_total,
+                        reward: r.reward_amount,
+                        paymentMethod: r.payment_method,
+                        installmentsTotal: instTotal,
+                        installmentsPaid: instPaid,
+                        rewardReleased: released,
+                        notes: r.notes
+                    };
+                });
+                setReferrals(mapped);
+                const earned = mapped.reduce((acc, m) => acc + (m.rewardReleased || 0), 0);
+                setTotalEarned(earned);
+                setBalance(earned);
             } else {
-                const initialReferrals: Referral[] = [
-                    { id: '1', friendName: 'Carlos Eduardo', date: '04/11/2026', status: 'completed', purchaseValue: 350.00, reward: 35.00 },
-                    { id: '2', friendName: 'Mariana Silva', date: '01/11/2026', status: 'completed', purchaseValue: 400.00, reward: 40.00 },
-                    { id: '3', friendName: 'Fernanda Lima', date: '28/10/2026', status: 'completed', purchaseValue: 200.00, reward: 20.00 },
-                    { id: '4', friendName: 'Roberto Alves', date: 'Hoje', status: 'pending', purchaseValue: 300.00, reward: 30.00 },
-                ];
-                setReferrals(initialReferrals);
-                setTotalEarned(95.00);
-                setBalance(65.00);
-                localStorage.setItem(storageKey, JSON.stringify({
-                    referrals: initialReferrals,
-                    totalEarned: 95.00,
-                    balance: 65.00
-                }));
+                setReferrals([]);
+                setTotalEarned(0);
+                setBalance(0);
             }
+        } catch (e) {
+            console.error('Error fetching referrals from Supabase:', e);
+        } finally {
+            setLoadingReferrals(false);
         }
-    }, [user]);
+    };
 
-    const handleCopyCode = () => {
-        navigator.clipboard.writeText(referralCode);
+    useEffect(() => {
+        loadUserReferrals();
+
+        const channel = supabase
+            .channel('public:user_referrals')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'referrals' }, () => {
+                loadUserReferrals();
+            })
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+        // Re-subscribe only when the customer (and therefore the code) changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, referralCode]);
+
+    const handleCopyCode = async () => {
+        try {
+            await navigator.clipboard.writeText(referralCode);
+        } catch (error) {
+            console.warn('Clipboard unavailable:', error);
+        }
         setCopied(true);
         toast({
             title: "Código copiado! 🚀",
@@ -81,9 +120,11 @@ const Indicacao = () => {
         setTimeout(() => setCopied(false), 2500);
     };
 
+    const registerLink = `${window.location.origin}/login?ref=${referralCode}`;
+
     const handleShareWhatsApp = () => {
         const message = encodeURIComponent(
-            `🛒 *Ganhe 10% de desconto no Mercado Fácil!*\n\nMonte sua cesta básica personalizada do seu jeito e economize! Use o meu código de indicação *${referralCode}* e ganhe 10% de desconto no seu primeiro pedido.\n\nAcesse agora: ${window.location.origin}`
+            `🛒 *Ganhe 10% de desconto na sua Cesta Básica!*\n\nOlá! Crie sua conta na Cesta Fácil com o meu código exclusivo *${referralCode}* e ganhe 10% de desconto no seu 1º pedido:\n\n👉 *Link para Criar Conta:* ${registerLink}\n\nAcesse e aproveite!`
         );
         window.open(`https://api.whatsapp.com/send?text=${message}`, '_blank');
     };
@@ -261,6 +302,34 @@ const Indicacao = () => {
                             </div>
                         </div>
                     </div>
+
+                    <div className="pt-3 border-t border-border/60">
+                        <span className="text-[11px] text-muted-foreground block mb-1">
+                            👉 Link direto para o amigo criar a conta com seu desconto já aplicado:
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                readOnly
+                                value={registerLink}
+                                aria-label="Link direto para criar conta"
+                                className="font-mono text-xs bg-muted/40 h-9"
+                            />
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(registerLink);
+                                    setCopied(true);
+                                    toast({ title: 'Link copiado!', description: 'Link direto de cadastro copiado com sucesso.' });
+                                    setTimeout(() => setCopied(false), 2000);
+                                }}
+                                className="h-9 text-xs shrink-0"
+                            >
+                                <Copy className="h-3.5 w-3.5 mr-1" />
+                                Copiar Link
+                            </Button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Interactive Earnings Calculator */}
@@ -353,36 +422,68 @@ const Indicacao = () => {
                     </div>
 
                     <div className="space-y-3">
-                        {referrals.map((ref) => (
-                            <div
-                                key={ref.id}
-                                className="bg-muted/30 rounded-xl p-4 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-muted/50"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2.5 rounded-xl ${ref.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
-                                        {ref.status === 'completed' ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-sm text-foreground">{ref.friendName}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {ref.date} {ref.purchaseValue ? `• Compra: R$ ${ref.purchaseValue.toFixed(2).replace('.', ',')}` : ''}
-                                        </p>
-                                    </div>
-                                </div>
+                        {referrals.map((ref) => {
+                            const isCarne = ref.paymentMethod === 'carne' || ref.paymentMethod === 'carnet' || (ref.installmentsTotal && ref.installmentsTotal > 1);
+                            const isCashOrPix = ref.paymentMethod === 'money' || ref.paymentMethod === 'pix';
+                            const isFullyReleased = ref.status === 'completed' || (ref.rewardReleased >= ref.reward && ref.reward > 0);
 
-                                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-border/40">
-                                    <Badge
-                                        variant={ref.status === 'completed' ? 'default' : 'secondary'}
-                                        className={ref.status === 'completed' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
-                                    >
-                                        {ref.status === 'completed' ? 'Concluído (10%)' : 'Pendente'}
-                                    </Badge>
-                                    <span className={`font-black text-base ${ref.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                                        +{ref.reward.toFixed(2).replace('.', ',')}
-                                    </span>
+                            return (
+                                <div
+                                    key={ref.id}
+                                    className="bg-muted/30 rounded-xl p-4 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-muted/50"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2.5 rounded-xl shrink-0 mt-0.5 ${isFullyReleased ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
+                                            {isFullyReleased ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="font-bold text-sm text-foreground">{ref.friendName}</p>
+                                                {isCarne ? (
+                                                    <Badge variant="outline" className="text-[10px] bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-200">
+                                                        Carnê {ref.installmentsPaid}/{ref.installmentsTotal} parcelas pagas
+                                                    </Badge>
+                                                ) : isCashOrPix ? (
+                                                    <Badge variant="outline" className="text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200">
+                                                        {ref.paymentMethod === 'pix' ? 'PIX' : 'Dinheiro'} na entrega
+                                                    </Badge>
+                                                ) : null}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                {ref.date} {ref.purchaseValue ? `• Compra: R$ ${ref.purchaseValue.toFixed(2).replace('.', ',')}` : ''}
+                                            </p>
+                                            {isCarne && (
+                                                <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium mt-1">
+                                                    10% liberado a cada carnê pago ({ref.installmentsPaid} de {ref.installmentsTotal} baixadas)
+                                                </p>
+                                            )}
+                                            {isCashOrPix && !isFullyReleased && (
+                                                <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1">
+                                                    Pendente até o pagamento no ato da entrega
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-border/40">
+                                        <Badge
+                                            variant={isFullyReleased ? 'default' : 'secondary'}
+                                            className={isFullyReleased ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
+                                        >
+                                            {isFullyReleased ? 'Liberado (10%)' : isCarne ? `${ref.installmentsPaid}/${ref.installmentsTotal} Carnês` : 'No ato da Entrega'}
+                                        </Badge>
+                                        <div className="text-right">
+                                            <span className={`font-black text-base ${ref.rewardReleased > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                                                +R$ {ref.rewardReleased.toFixed(2).replace('.', ',')}
+                                            </span>
+                                            {ref.rewardReleased < ref.reward && (
+                                                <p className="text-[10px] text-muted-foreground">de R$ {ref.reward.toFixed(2).replace('.', ',')}</p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </main>

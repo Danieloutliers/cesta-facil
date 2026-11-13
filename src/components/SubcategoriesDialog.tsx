@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Category, SubCategory } from '@/types';
 import { useSubcategories, createSubcategory, updateSubcategory, deleteSubcategory } from '@/hooks/useData';
 import { Plus, Trash2, Pencil, Save, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface SubcategoriesDialogProps {
     open: boolean;
@@ -15,7 +15,8 @@ interface SubcategoriesDialogProps {
 }
 
 export function SubcategoriesDialog({ open, onOpenChange, category }: SubcategoriesDialogProps) {
-    const { subcategories, refetch } = useSubcategories(); // Note: refetch might need to be exposed from useSubcategories hook
+    const { subcategories, refetch } = useSubcategories();
+    const { toast } = useToast();
     const [newItemLabel, setNewItemLabel] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editLabel, setEditLabel] = useState('');
@@ -26,42 +27,43 @@ export function SubcategoriesDialog({ open, onOpenChange, category }: Subcategor
     // Filter subcategories for this category
     const categorySubcategories = subcategories.filter(sub => sub.category_id === category.id);
 
-    // Need to handle refetching. 
-    // Since useSubcategories hook currently doesn't export refetch, I should update the hook first or force reload.
-    // For now, I'll assume I can trigger a reload or update local state.
-    // To make it robust, I should update useData.ts to export refetch.
-
-    // BUT, for this step, let's implement the UI logic first. Use window.location.reload() for simplicity if needed, 
-    // or better, update the hook in the previous step (I missed adding refetch export).
-    // I will use window.location.reload() for now as a fallback or assume the list updates if I didn't update the hook properly.
-    // Actually, I should check useData.ts again.
-
     const handleAdd = async () => {
-        if (!newItemLabel.trim()) return;
+        const label = newItemLabel.trim();
+        if (!label) return;
         setLoading(true);
         try {
             await createSubcategory({
-                label: newItemLabel,
+                label,
                 category_id: category.id
             });
             setNewItemLabel('');
-            window.location.reload(); // Simple refresh for now
+            await refetch();
+            toast({ title: 'Subcategoria adicionada!' });
         } catch (error) {
             console.error(error);
-            alert('Erro ao adicionar subcategoria');
+            toast({
+                title: 'Erro ao adicionar subcategoria',
+                description: error instanceof Error ? error.message : 'Tente novamente.',
+                variant: 'destructive',
+            });
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza?')) return;
+        if (!confirm('Tem certeza que deseja excluir esta subcategoria?')) return;
         try {
             await deleteSubcategory(id);
-            window.location.reload();
+            await refetch();
+            toast({ title: 'Subcategoria excluída.' });
         } catch (error) {
             console.error(error);
-            alert('Erro ao excluir');
+            toast({
+                title: 'Erro ao excluir',
+                description: error instanceof Error ? error.message : 'Tente novamente.',
+                variant: 'destructive',
+            });
         }
     };
 
@@ -71,15 +73,21 @@ export function SubcategoriesDialog({ open, onOpenChange, category }: Subcategor
     };
 
     const saveEdit = async () => {
-        if (!editingId || !editLabel.trim()) return;
+        const label = editLabel.trim();
+        if (!editingId || !label) return;
         setLoading(true);
         try {
-            await updateSubcategory(editingId, { label: editLabel });
+            await updateSubcategory(editingId, { label });
             setEditingId(null);
-            window.location.reload();
+            await refetch();
+            toast({ title: 'Subcategoria atualizada!' });
         } catch (error) {
             console.error(error);
-            alert('Erro ao atualizar');
+            toast({
+                title: 'Erro ao atualizar',
+                description: error instanceof Error ? error.message : 'Tente novamente.',
+                variant: 'destructive',
+            });
         } finally {
             setLoading(false);
         }

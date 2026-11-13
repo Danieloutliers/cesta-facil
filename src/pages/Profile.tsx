@@ -13,6 +13,8 @@ import { useAuth, Address } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { fetchReferralsForCustomer } from '@/services/referralService';
+import { formatPhone } from '@/lib/phone';
 
 interface Referral {
     id: string;
@@ -44,8 +46,8 @@ const Profile = () => {
     // Referral state
     const referralCode = user ? `CESTA-${user.phone.replace(/\D/g, '').slice(-4) || '2026'}` : 'CESTA-2026';
     const [referrals, setReferrals] = useState<Referral[]>([]);
-    const [totalEarned, setTotalEarned] = useState(95.00);
-    const [balance, setBalance] = useState(65.00);
+    const [totalEarned, setTotalEarned] = useState(0);
+    const [balance, setBalance] = useState(0);
 
     useEffect(() => {
         if (user) {
@@ -57,36 +59,41 @@ const Profile = () => {
                 }));
             }
 
-            // Load referral data from localStorage or set defaults
-            const storageKey = `mercadofacil_referrals_${user.id}_v2`;
-            const savedReferralData = localStorage.getItem(storageKey);
+            // Referral data is the single source of truth in Supabase (same data
+            // shown on the dedicated Indicações page).
+            let cancelled = false;
+            fetchReferralsForCustomer(user.id, user.phone)
+                .then((records) => {
+                    if (cancelled) return;
+                    const mapped: Referral[] = records.map((r) => {
+                        const released = Number(r.reward_released ?? 0);
+                        const completed = r.status === 'completed' || r.status === 'paid';
+                        return {
+                            id: r.id,
+                            friendName: r.friend_name,
+                            date: new Date(r.created_at).toLocaleDateString('pt-BR'),
+                            status: completed ? 'completed' : 'pending',
+                            purchaseValue: r.order_total,
+                            reward: completed ? released : 0,
+                        };
+                    });
+                    setReferrals(mapped);
+                    const earned = mapped.reduce((sum, item) => sum + item.reward, 0);
+                    setTotalEarned(earned);
+                    setBalance(earned);
+                })
+                .catch((error) => {
+                    console.error('Error loading referrals:', error);
+                    if (!cancelled) {
+                        setReferrals([]);
+                        setTotalEarned(0);
+                        setBalance(0);
+                    }
+                });
 
-            if (savedReferralData) {
-                try {
-                    const parsed = JSON.parse(savedReferralData);
-                    setReferrals(parsed.referrals || []);
-                    setTotalEarned(parsed.totalEarned ?? 95.00);
-                    setBalance(parsed.balance ?? 65.00);
-                } catch (e) {
-                    console.error('Error reading referrals from storage', e);
-                }
-            } else {
-                // Initial demo referral history (10% of purchase)
-                const initialReferrals: Referral[] = [
-                    { id: '1', friendName: 'Carlos Eduardo', date: '04/11/2026', status: 'completed', purchaseValue: 350.00, reward: 35.00 },
-                    { id: '2', friendName: 'Mariana Silva', date: '01/11/2026', status: 'completed', purchaseValue: 400.00, reward: 40.00 },
-                    { id: '3', friendName: 'Fernanda Lima', date: '28/10/2026', status: 'completed', purchaseValue: 200.00, reward: 20.00 },
-                    { id: '4', friendName: 'Roberto Alves', date: 'Hoje', status: 'pending', purchaseValue: 300.00, reward: 30.00 },
-                ];
-                setReferrals(initialReferrals);
-                setTotalEarned(95.00);
-                setBalance(65.00);
-                localStorage.setItem(storageKey, JSON.stringify({
-                    referrals: initialReferrals,
-                    totalEarned: 95.00,
-                    balance: 65.00
-                }));
-            }
+            return () => {
+                cancelled = true;
+            };
         } else {
             navigate('/login');
         }
@@ -131,8 +138,12 @@ const Profile = () => {
         navigate('/');
     };
 
-    const handleCopyCode = () => {
-        navigator.clipboard.writeText(referralCode);
+    const handleCopyCode = async () => {
+        try {
+            await navigator.clipboard.writeText(referralCode);
+        } catch (error) {
+            console.warn('Clipboard unavailable:', error);
+        }
         setCopied(true);
         toast({
             title: "Código copiado! 🚀",
@@ -172,7 +183,7 @@ const Profile = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold">Meu Perfil</h1>
-                        <p className="text-muted-foreground">{user.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}</p>
+                        <p className="text-muted-foreground">{formatPhone(user.phone)}</p>
                     </div>
                 </div>
 
@@ -368,7 +379,7 @@ const Profile = () => {
                                 <Label htmlFor="phone">Telefone</Label>
                                 <Input
                                     id="phone"
-                                    value={user.phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+                                    value={formatPhone(user.phone)}
                                     disabled
                                     className="bg-muted"
                                 />

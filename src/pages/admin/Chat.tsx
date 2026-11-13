@@ -66,7 +66,7 @@ interface OrderHistoryItem {
     total: number;
     status: string;
     created_at: string;
-    items: any[];
+    items: Array<{ name?: string; quantity?: number; price?: number }>;
 }
 
 export default function ChatPage() {
@@ -393,17 +393,22 @@ export default function ChatPage() {
 
     // Polling para atualizar chats
     useEffect(() => {
-        loadChats();
+        void loadChats();
         const interval = setInterval(loadChats, 5000);
         return () => clearInterval(interval);
+        // Polling is intentionally mount-only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Atualizar mensagens da conversa ativa
     useEffect(() => {
         if (selectedChat) {
+            void loadMessages(selectedChat.chatId);
             const interval = setInterval(() => loadMessages(selectedChat.chatId), 5000);
             return () => clearInterval(interval);
         }
+        // Only the selected chat should restart the poller.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedChat]);
 
     const formatTime = (timestamp: string) => {
@@ -492,7 +497,7 @@ export default function ChatPage() {
 
             // Formatar Itens
             const itemsList = fullOrder.items
-                ? fullOrder.items.map((i: any) => `- ${i.quantity}x ${i.name}`).join('\n')
+                ? (fullOrder.items as Array<{ name?: string; quantity?: number }>).map((i) => `- ${i.quantity}x ${i.name}`).join('\n')
                 : '';
 
             // Formatar Endereço (Agora vindo do JSONB 'address' da tabela orders)
@@ -729,7 +734,7 @@ export default function ChatPage() {
                                                                     </div>
                                                                     {order.items && order.items.length > 0 && (
                                                                         <div className="bg-muted/30 p-2 rounded text-xs space-y-1">
-                                                                            {order.items.map((item: any, idx: number) => (
+                                                                            {order.items.map((item, idx) => (
                                                                                 <div key={idx} className="flex justify-between">
                                                                                     <span>{item.quantity}x {item.name}</span>
                                                                                     <span className="text-muted-foreground">R$ {item.price?.toFixed(2)}</span>

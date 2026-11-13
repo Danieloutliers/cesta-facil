@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Bell, Package, CheckCircle, Clock, Truck, XCircle, ShoppingBag, User } from "lucide-react";
 import {
     Popover,
@@ -28,8 +28,12 @@ export function Notifications() {
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    const fetchOrders = async () => {
-        if (!user) return;
+    const fetchOrders = useCallback(async () => {
+        if (!user) {
+            setOrders([]);
+            setUnreadCount(0);
+            return;
+        }
 
         const { data, error } = await supabase
             .from('orders')
@@ -38,24 +42,29 @@ export function Notifications() {
             .order('created_at', { ascending: false })
             .limit(10);
 
-        if (!error && data) {
+        if (error) {
+            console.error('Error loading notifications:', error);
+            return;
+        }
+
+        if (data) {
             setOrders(data);
             const active = data.filter(o => !['entregue', 'cancelado'].includes(o.status)).length;
             setUnreadCount(active);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
-        if (open) fetchOrders();
-    }, [open, user]);
+        if (open) void fetchOrders();
+    }, [open, fetchOrders]);
 
     useEffect(() => {
-        fetchOrders();
+        void fetchOrders();
 
         if (!user) return;
 
         const channel = supabase
-            .channel('public:orders')
+            .channel(`customer-orders-${user.id}`)
             .on(
                 'postgres_changes',
                 {
@@ -65,16 +74,15 @@ export function Notifications() {
                     filter: `user_id=eq.${user.id}`,
                 },
                 () => {
-                    fetchOrders();
+                    void fetchOrders();
                 }
             )
             .subscribe();
 
         return () => {
-            // Safely remove channel
-            supabase.removeChannel(channel).catch(err => console.error("Error removing channel:", err));
+            void supabase.removeChannel(channel);
         };
-    }, [user]);
+    }, [user, fetchOrders]);
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -100,7 +108,7 @@ export function Notifications() {
 
     const handleClickOrder = (orderId: string) => {
         setOpen(false);
-        navigate(`/meus-pedidos?highlight=${orderId}`);
+        navigate(`/historico?highlight=${encodeURIComponent(orderId)}`);
     };
 
     return (
@@ -114,7 +122,7 @@ export function Notifications() {
                     <span className="sr-only">Notificações</span>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[340px] p-0 shadow-2xl border-0 ring-1 ring-black/5" align="end" sideOffset={8}>
+            <PopoverContent className="w-[calc(100vw-1.5rem)] max-w-[340px] p-0 shadow-2xl border-0 ring-1 ring-black/5" align="end" sideOffset={8}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 to-transparent border-b">
                     <div className="flex items-center gap-2">

@@ -58,6 +58,8 @@ export default function WhatsappConnect() {
             }, 1000);
             return () => clearInterval(interval);
         }
+        // Restart the countdown only when a new QR code arrives.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [status?.qr]);
 
     const checkStatus = async () => {
@@ -153,13 +155,13 @@ export default function WhatsappConnect() {
             } else {
                 throw new Error(`Erro do servidor: ${res.status}`);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Erro ao desconectar:', err);
 
             // Mesmo com erro, forçamos o reset da interface para o usuário não ficar travado
             setStatus(null);
 
-            const message = err.name === 'AbortError'
+            const message = err instanceof Error && err.name === 'AbortError'
                 ? "Tempo limite excedido. Reiniciando interface..."
                 : "Erro ao comunicar com o bot. Interface reiniciada.";
 

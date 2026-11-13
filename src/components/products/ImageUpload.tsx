@@ -9,7 +9,7 @@ interface ImageUploadProps {
     currentImage?: string;
 }
 
-export function ImageUpload({ on ImageUploaded, currentImage }: ImageUploadProps) {
+export function ImageUpload({ onImageUploaded, currentImage }: ImageUploadProps) {
     const [uploading, setUploading] = useState(false);
     const [preview, setPreview] = useState<string | null>(currentImage || null);
     const { toast } = useToast();

@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 // Fix for default marker icon in React Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -36,8 +36,25 @@ const deliveryIcon = new L.Icon({
     shadowSize: [41, 41]
 });
 
+export interface DeliveryMapOrder {
+    id: string;
+    total: number;
+    address: Address;
+    createdAt: string;
+    user: {
+        phone?: string;
+        name?: string;
+    };
+}
+
 interface DeliveryMapProps {
-    orders: any[]; // Using any to match the enhanced order type from RouteList
+    orders: DeliveryMapOrder[];
+}
+
+interface MapMarker {
+    lat: number;
+    lng: number;
+    order: DeliveryMapOrder;
 }
 
 const RecenterBtn = ({ center }: { center: [number, number] }) => {
@@ -57,28 +74,35 @@ const RecenterBtn = ({ center }: { center: [number, number] }) => {
 export const DeliveryMap = ({ orders }: DeliveryMapProps) => {
     const navigate = useNavigate();
     const storeLoc = getStoreLocation();
-    const [markers, setMarkers] = useState<{ lat: number, lng: number, order: any }[]>([]);
+    const [markers, setMarkers] = useState<MapMarker[]>([]);
 
     useEffect(() => {
+        let cancelled = false;
+
         const fetchLocations = async () => {
-            const newMarkers = [];
+            const newMarkers: MapMarker[] = [];
             for (const order of orders) {
-                // Construct full address string
-                const addressStr = `${order.address.street}, ${order.address.number}, ${order.address.neighborhood}`;
+                const addressStr = [
+                    order.address?.street,
+                    order.address?.number,
+                    order.address?.neighborhood,
+                ].filter(Boolean).join(', ');
+                if (!addressStr) continue;
+
                 const coords = await getCoordinates(addressStr);
+                if (cancelled) return;
 
                 if (coords) {
-                    newMarkers.push({
-                        lat: coords.lat,
-                        lng: coords.lng,
-                        order
-                    });
+                    newMarkers.push({ lat: coords.lat, lng: coords.lng, order });
                 }
             }
-            setMarkers(newMarkers);
+            if (!cancelled) setMarkers(newMarkers);
         };
 
-        fetchLocations();
+        void fetchLocations();
+        return () => {
+            cancelled = true;
+        };
     }, [orders]);
 
     return (

@@ -33,7 +33,7 @@ const steps: Step[] = [
     {
         title: "Receba em Casa",
         description: "Agendamos a entrega e você só paga quando receber seus produtos.",
-        image: "/images/entrega-mercado-facil.jpg",
+        image: "/entrega-mercado-facil.jpg",
         bgClass: "bg-orange-50"
     },
     {
@@ -47,18 +47,37 @@ export function OnboardingTutorial() {
     const [isOpen, setIsOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     useEffect(() => {
-        // Check if tutorial has been seen
-        const hasSeenTutorial = localStorage.getItem('has_seen_tutorial_v10');
+        let hasSeenTutorial = true;
+        try {
+            hasSeenTutorial = Boolean(localStorage.getItem('has_seen_tutorial_v10'));
+        } catch {
+            // Storage unavailable (private mode): show the tutorial only this time.
+            hasSeenTutorial = false;
+        }
+
         if (!hasSeenTutorial) {
             setIsOpen(true);
-            // Prevent body scroll
-            document.body.style.overflow = 'hidden';
         }
     }, []);
+
+    // Lock body scroll only while the tutorial is actually open, and always
+    // restore it on unmount (navigating away used to leave the page locked).
+    useEffect(() => {
+        if (!isOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isOpen]);
+
     const handleClose = () => {
         setIsOpen(false);
-        localStorage.setItem('has_seen_tutorial_v10', 'true');
-        document.body.style.overflow = 'unset';
+        try {
+            localStorage.setItem('has_seen_tutorial_v10', 'true');
+        } catch {
+            // Ignore storage failures; the tutorial will simply show again.
+        }
     };
     const handleNext = () => {
         if (currentStep < steps.length - 1) {

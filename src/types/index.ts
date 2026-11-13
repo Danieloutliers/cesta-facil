@@ -3,14 +3,29 @@ export interface Product {
   name: string;
   price: number;
   image: string;
-  category: 'alimentos' | 'limpeza' | 'higiene' | 'bebidas';
+  /** Category slug. Dynamic categories can be created in the admin panel. */
+  category: string;
   unit: string;
   description?: string;
   subcategory_id?: string;
   cost_price?: number;
 }
 
-export type PaymentMethod = 'dinheiro' | 'pix' | 'cartao' | 'carne';
+/**
+ * Payment methods used across the application.
+ * The first group is used by the storefront checkout; the second is kept for
+ * legacy orders and for the delivery registration form, which persisted
+ * different identifiers. Both are accepted so historical data keeps rendering.
+ */
+export type PaymentMethod =
+  | 'dinheiro'
+  | 'pix'
+  | 'cartao'
+  | 'carne'
+  | 'money'
+  | 'credit_card'
+  | 'debit_card'
+  | 'carnet';
 
 export interface SubCategory {
   id: string;
@@ -94,6 +109,8 @@ export interface Banner {
   link?: string;
   display_order: number;
   active: boolean;
+  use_blur?: boolean;
+  blur_amount?: number;
   created_at?: string;
   updated_at?: string;
 }

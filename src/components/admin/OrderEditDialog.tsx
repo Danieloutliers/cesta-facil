@@ -41,18 +41,28 @@ export function OrderEditDialog({ open, onOpenChange, order, onSave }: OrderEdit
     }, [open]);
 
     const loadProducts = async () => {
-        const { data } = await supabase.from('products').select('*');
-        if (data) setProducts(data);
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('active', true)
+            .order('name');
+
+        if (error) {
+            console.error('Error loading products for order edit:', error);
+            toast({ title: 'Erro ao carregar produtos', variant: 'destructive' });
+            return;
+        }
+        setProducts(data ?? []);
     };
 
-    const handleItemChange = (index: number, field: keyof CartItem, value: any) => {
+    const handleItemChange = (index: number, field: keyof CartItem, value: string | number) => {
         if (!editedOrder) return;
         const newItems = [...editedOrder.items];
 
         if (field === 'price' || field === 'quantity') {
             newItems[index] = { ...newItems[index], [field]: Number(value) };
         } else {
-            newItems[index] = { ...newItems[index], [field]: value };
+            newItems[index] = { ...newItems[index], [field]: value } as CartItem;
         }
 
         // Auto-calculate total when items change
@@ -239,7 +249,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSave }: OrderEdit
                                 <Label>Status do Pedido</Label>
                                 <Select
                                     value={editedOrder.status}
-                                    onValueChange={(v: any) => setEditedOrder({ ...editedOrder, status: v })}
+                                    onValueChange={(v) => setEditedOrder({ ...editedOrder, status: v as Order['status'] })}
                                 >
                                     <SelectTrigger>
                                         <SelectValue />
@@ -258,7 +268,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSave }: OrderEdit
                                 <Label>Método de Pagamento</Label>
                                 <Select
                                     value={editedOrder.paymentMethod || 'dinheiro'}
-                                    onValueChange={(v) => setEditedOrder({ ...editedOrder, paymentMethod: v })}
+                                    onValueChange={(v) => setEditedOrder({ ...editedOrder, paymentMethod: v as Order['paymentMethod'] })}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione..." />

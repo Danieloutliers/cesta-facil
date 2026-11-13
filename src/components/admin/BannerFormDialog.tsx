@@ -10,6 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { uploadBannerImage, useBannerMutations } from '@/hooks/useBanners';
 import { Banner } from '@/types';
 import { Loader2, Upload } from 'lucide-react';
+import { getErrorMessage } from '@/lib/errors';
 
 interface BannerFormDialogProps {
     open: boolean;
@@ -113,8 +114,8 @@ export function BannerFormDialog({ open, onOpenChange, banner, onSuccess }: Bann
             setUploading(true);
             const url = await uploadBannerImage(file);
             setFormData(prev => ({ ...prev, image_url: url }));
-        } catch (error: any) {
-            alert('Erro ao fazer upload da imagem: ' + error.message);
+        } catch (error) {
+            alert(`Erro ao fazer upload da imagem: ${getErrorMessage(error)}`);
         } finally {
             setUploading(false);
         }
